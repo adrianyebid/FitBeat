@@ -69,11 +69,10 @@ function AuthPage() {
   return (
     <main className="auth-layout">
       <section className="brand-panel">
-        <p className="brand-pill">GymTrack</p>
-        <h1>Entrena con datos, no con suposiciones.</h1>
+        <p className="brand-pill">GymBeat</p>
+        <h1>Tu entrenamiento tiene ritmo propio.</h1>
         <p className="brand-copy">
-          Registra tu progreso y mantente constante. Este frontend ya esta conectado con tu
-          backend de autenticacion.
+          Recomendaciones de musica segun tu tipo de entrenamiento y tu frecuencia cardiaca.
         </p>
       </section>
 

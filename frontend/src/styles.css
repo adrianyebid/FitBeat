@@ -1,18 +1,18 @@
 @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Manrope:wght@400;600;700&display=swap");
 
 :root {
-  --bg-1: #f4f8ef;
-  --bg-2: #d9f0db;
-  --bg-3: #c5e7f2;
+  --bg-1: #f4f8ff;
+  --bg-2: #d8e7ff;
+  --bg-3: #ffd9d9;
   --panel: rgba(255, 255, 255, 0.82);
   --panel-strong: #ffffff;
-  --text-main: #132622;
-  --text-soft: #4d615c;
-  --brand: #0e9f6e;
-  --brand-dark: #087f59;
+  --text-main: #1a1a2e;
+  --text-soft: #53536a;
+  --brand: #e64b7a;
+  --brand-dark: #4361ee;
   --danger: #b3261e;
-  --border: #d7e7e2;
-  --shadow: 0 24px 60px rgba(35, 58, 51, 0.16);
+  --border: #d9deef;
+  --shadow: 0 24px 60px rgba(33, 40, 78, 0.16);
 }
 
 * {
@@ -60,7 +60,9 @@ p {
 }
 
 .brand-panel {
-  background: linear-gradient(170deg, rgba(14, 159, 110, 0.92), rgba(11, 120, 98, 0.88));
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(155deg, rgba(230, 75, 122, 0.93), rgba(67, 97, 238, 0.9));
   color: #f1fff9;
   padding: 3rem;
   display: flex;
@@ -69,15 +71,34 @@ p {
   gap: 1.2rem;
 }
 
+.brand-panel::after {
+  content: "";
+  position: absolute;
+  inset: auto -8% 10%;
+  height: 120px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.26) 0 8px,
+    transparent 8px 16px
+  );
+  transform: skewX(-12deg);
+  animation: beat-bars 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
 .brand-panel h1 {
   font-size: clamp(2rem, 4vw, 3.2rem);
   line-height: 1.05;
   max-width: 14ch;
+  position: relative;
+  z-index: 1;
 }
 
 .brand-copy {
   max-width: 34ch;
   color: rgba(241, 255, 249, 0.88);
+  position: relative;
+  z-index: 1;
 }
 
 .brand-pill {
@@ -90,6 +111,8 @@ p {
   border: 1px solid rgba(255, 255, 255, 0.42);
   background: rgba(255, 255, 255, 0.2);
   font-weight: 700;
+  position: relative;
+  z-index: 1;
 }
 
 .form-panel {
@@ -220,9 +243,24 @@ small {
 }
 
 .ghost-btn {
-  border: 1px solid #95beb2;
-  color: #0c6c4d;
-  background: #effbf6;
+  border: 1px solid #b7c2f6;
+  color: #3143aa;
+  background: #f1f4ff;
+}
+
+@keyframes beat-bars {
+  0% {
+    transform: skewX(-12deg) translateX(0);
+    opacity: 0.45;
+  }
+  50% {
+    transform: skewX(-12deg) translateX(-10px);
+    opacity: 0.72;
+  }
+  100% {
+    transform: skewX(-12deg) translateX(0);
+    opacity: 0.45;
+  }
 }
 
 .cards-grid {
