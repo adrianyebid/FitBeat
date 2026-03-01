@@ -9,7 +9,7 @@
   --white-pure: #ffffff;
   --text-light: #e8e8e8;
   --text-muted: #9a9a9a;
-  --danger: #ff3366;
+  --danger: #b10404;
   --border-green: rgba(0, 255, 110, 0.3);
   --border-green-light: rgba(0, 255, 110, 0.5);
 }
@@ -158,7 +158,7 @@ p {
 
 .auth-form {
   display: grid;
-  gap: 1.2rem;
+  gap: 1rem;
   margin-top: 0;
 }
 
@@ -317,15 +317,14 @@ small {
 }
 
 .api-error {
-  margin-top: 1rem;
-  border-radius: 10px;
-  border: 1.5px solid var(--danger);
+  margin-top: 0rem;
+  border-radius: 5px;
+  border: 1px solid var(--danger);
   background: rgba(255, 51, 102, 0.1);
-  color: #ff6b8a;
+  color: var(--danger);
   padding: 1rem;
   display: grid;
-  gap: 0.5rem;
-  box-shadow: 0 0 20px rgba(255, 51, 102, 0.15);
+  gap: 1rem;
 }
 
 .api-error p {
@@ -341,7 +340,7 @@ small {
 }
 
 .api-error li {
-  margin: 0.3rem 0;
+  margin: 0.2rem 0;
 }
 
 /* Dashboard Styles */

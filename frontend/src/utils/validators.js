@@ -6,20 +6,20 @@ export function validateAuthForm(mode, values) {
   const errors = {};
 
   if (mode === "register") {
-    if (!values.firstName.trim()) errors.firstName = "El nombre es obligatorio";
-    if (!values.lastName.trim()) errors.lastName = "El apellido es obligatorio";
+    if (!values.firstName.trim()) errors.firstName = "Debes ingresar un nombre";
+    if (!values.lastName.trim()) errors.lastName = "Debes ingresar un apellido";
   }
 
   if (!values.email.trim()) {
-    errors.email = "El email es obligatorio";
+    errors.email = "Debes ingresar un correo";
   } else if (!isValidEmail(values.email)) {
-    errors.email = "Ingresa un email valido";
+    errors.email = "Ingresa un correo válido";
   }
 
   if (!values.password) {
-    errors.password = "La contrasena es obligatoria";
+    errors.password = "Debes ingresar una contraseña";
   } else if (values.password.length < 6) {
-    errors.password = "La contrasena debe tener al menos 6 caracteres";
+    errors.password = "La contraseña debe tener al menos 6 caracteres";
   }
 
   return errors;

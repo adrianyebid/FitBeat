@@ -90,7 +90,7 @@ function AuthPage() {
                   id="email-field"
                   name="email"
                   type="email"
-                  placeholder="Usuario"
+                  placeholder="Correo electrónico"
                   value={form.email}
                   onChange={updateField}
                 />
