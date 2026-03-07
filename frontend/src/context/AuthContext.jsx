@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useState } from "react";
 import { login as loginRequest, register as registerRequest } from "../api/authApi";
 
-const USER_STORAGE_KEY = "gymtrack-user";
+const USER_STORAGE_KEY = "fitbeat-user";
 
 const AuthContext = createContext(null);
 

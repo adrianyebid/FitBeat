@@ -1,4 +1,4 @@
-# GymTrack Frontend
+# FitBeat Frontend
 
 Frontend en React + Vite para autenticacion contra backend Spring Boot.
 
@@ -13,7 +13,7 @@ Frontend en React + Vite para autenticacion contra backend Spring Boot.
   - `POST /api/auth/register`
   - `POST /api/auth/login`
 - Manejo de errores del backend (`message` y `details`).
-- Persistencia de sesion en `localStorage` (`gymtrack-user`).
+- Persistencia de sesion en `localStorage` (`fitbeat-user`).
 - Ruta protegida `/dashboard` y redireccion si no hay sesion.
 - Logout con limpieza de sesion local.
 

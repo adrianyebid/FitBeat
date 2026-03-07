@@ -8,7 +8,7 @@ function DashboardPage() {
     <main className="dashboard-layout">
       <header className="dashboard-header">
         <div>
-          <p className="brand-pill">GymBeat</p>
+          <p className="brand-pill">FitBeat</p>
           <h2>Bienvenido</h2>
           <p>{fullName || "Usuario"}</p>
           <p>{user?.email ?? "Sin correo"}</p>
