@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AuthPage from "./pages/AuthPage";
 import DashboardPage from "./pages/DashboardPage";
+import TrainingPage from "./pages/TrainingPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
 
@@ -18,6 +19,14 @@ function App() {
         element={
           <ProtectedRoute>
             <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/training"
+        element={
+          <ProtectedRoute>
+            <TrainingPage />
           </ProtectedRoute>
         }
       />

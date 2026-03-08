@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, useState } from "react";
 import { login as loginRequest, register as registerRequest } from "../api/authApi";
+import { mockUser, USE_MOCK_DATA } from "../api/mockData";
 
 const USER_STORAGE_KEY = "fitbeat-user";
 
@@ -19,7 +20,15 @@ function persistUser(user) {
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(readStoredUser);
+  const [user, setUser] = useState(() => {
+    const stored = readStoredUser();
+    // En desarrollo, usar datos mock si no hay usuario guardado
+    if (!stored && USE_MOCK_DATA) {
+      persistUser(mockUser);
+      return mockUser;
+    }
+    return stored;
+  });
 
   const value = useMemo(
     () => ({
@@ -55,3 +64,4 @@ export function useAuth() {
   }
   return context;
 }
+
