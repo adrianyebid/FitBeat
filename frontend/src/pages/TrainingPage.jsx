@@ -9,7 +9,10 @@ function TrainingPage() {
 
   const handleSelectMode = (mode) => {
     setSelectedMode(mode);
-    // Aquí puedes agregar lógica para navegar o iniciar entrenamiento
+    // Navegar según el modo seleccionado
+    if (mode === "manual") {
+      navigate("/training/select-type");
+    }
     console.log(`Modo de entrenamiento seleccionado: ${mode}`);
   };
 

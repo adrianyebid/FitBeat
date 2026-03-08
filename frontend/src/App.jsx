@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import AuthPage from "./pages/AuthPage";
 import DashboardPage from "./pages/DashboardPage";
 import TrainingPage from "./pages/TrainingPage";
+import TrainingTypeSelectionPage from "./pages/TrainingTypeSelectionPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
 
@@ -27,6 +28,14 @@ function App() {
         element={
           <ProtectedRoute>
             <TrainingPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/training/select-type"
+        element={
+          <ProtectedRoute>
+            <TrainingTypeSelectionPage />
           </ProtectedRoute>
         }
       />
