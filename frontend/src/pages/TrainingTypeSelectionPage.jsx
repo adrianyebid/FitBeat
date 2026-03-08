@@ -1,9 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useTraining } from "../context/TrainingContext";
 
 function TrainingTypeSelectionPage() {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { startTrainingSession } = useTraining();
 
   const trainingTypes = [
     {
@@ -51,10 +53,10 @@ function TrainingTypeSelectionPage() {
   ];
 
   const handleSelectTraining = (trainingId) => {
-    // Aquí puedes agregar lógica para guardar el tipo de entrenamiento seleccionado
-    console.log(`Tipo de entrenamiento seleccionado: ${trainingId}`);
-    // Navegar a una página de detalles o comenzar el entrenamiento
-    navigate(`/training/${trainingId}`);
+    // Guardar el tipo de entrenamiento en el contexto
+    startTrainingSession(trainingId);
+    // Navegar a la página de reproducción
+    navigate(`/training/play/${trainingId}`);
   };
 
   const handleBackToTraining = () => {
