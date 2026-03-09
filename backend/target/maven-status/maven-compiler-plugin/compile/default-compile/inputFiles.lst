@@ -1,0 +1,14 @@
+C:\Users\57320\Desktop\GymBeat\backend\src\main\java\org\example\fitbeat\config\CorsConfig.java
+C:\Users\57320\Desktop\GymBeat\backend\src\main\java\org\example\fitbeat\controller\AuthController.java
+C:\Users\57320\Desktop\GymBeat\backend\src\main\java\org\example\fitbeat\dto\AuthResponse.java
+C:\Users\57320\Desktop\GymBeat\backend\src\main\java\org\example\fitbeat\dto\LoginRequest.java
+C:\Users\57320\Desktop\GymBeat\backend\src\main\java\org\example\fitbeat\dto\RegisterRequest.java
+C:\Users\57320\Desktop\GymBeat\backend\src\main\java\org\example\fitbeat\dto\UserResponse.java
+C:\Users\57320\Desktop\GymBeat\backend\src\main\java\org\example\fitbeat\entity\User.java
+C:\Users\57320\Desktop\GymBeat\backend\src\main\java\org\example\fitbeat\exception\ApiError.java
+C:\Users\57320\Desktop\GymBeat\backend\src\main\java\org\example\fitbeat\exception\BadRequestException.java
+C:\Users\57320\Desktop\GymBeat\backend\src\main\java\org\example\fitbeat\exception\GlobalExceptionHandler.java
+C:\Users\57320\Desktop\GymBeat\backend\src\main\java\org\example\fitbeat\exception\UnauthorizedException.java
+C:\Users\57320\Desktop\GymBeat\backend\src\main\java\org\example\fitbeat\FitbeatApplication.java
+C:\Users\57320\Desktop\GymBeat\backend\src\main\java\org\example\fitbeat\repository\UserRepository.java
+C:\Users\57320\Desktop\GymBeat\backend\src\main\java\org\example\fitbeat\service\AuthService.java
