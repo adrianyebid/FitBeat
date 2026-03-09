@@ -1,0 +1,10 @@
+# Local environment
+.env
+
+# Build artifacts
+bin/
+tmp/
+*.test
+
+# Coverage
+coverage.out
