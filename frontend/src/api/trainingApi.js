@@ -1,22 +1,59 @@
-import { request } from "./httpClient";
+const DEFAULT_ENGINE_BASE_URL = "http://localhost:8081";
 
-//Pend a integración con el backend para guardar sesiones de entrenamiento, obtener sesiones y estadísticas de entrenamiento.
+const ENGINE_BASE_URL = (
+  import.meta.env.VITE_MUSIC_ENGINE_BASE_URL || DEFAULT_ENGINE_BASE_URL
+).replace(/\/$/, "");
 
-export function saveTrainingSession(payload) {
-  return request("/api/training/sessions", {
+async function parseResponse(response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    return null;
+  }
+  return response.json();
+}
+
+function normalizeApiError(statusCode, payload) {
+  if (!payload || typeof payload !== "object") {
+    return {
+      statusCode,
+      message: "Unexpected error",
+      details: []
+    };
+  }
+
+  return {
+    statusCode,
+    message: typeof payload.message === "string" ? payload.message : "Unexpected error",
+    details: Array.isArray(payload.details) ? payload.details : []
+  };
+}
+
+async function requestEngine(path, options = {}) {
+  const response = await fetch(`${ENGINE_BASE_URL}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    },
+    ...options
+  });
+
+  const payload = await parseResponse(response);
+  if (!response.ok) {
+    throw normalizeApiError(response.status, payload);
+  }
+  return payload;
+}
+
+export function createEngineSession(payload) {
+  return requestEngine("/api/v1/sessions", {
     method: "POST",
     body: JSON.stringify(payload)
   });
 }
 
-export function getTrainingSessions() {
-  return request("/api/training/sessions", {
-    method: "GET"
-  });
-}
-
-export function getTrainingStats(userId) {
-  return request(`/api/training/stats/${userId}`, {
-    method: "GET"
+export function sendBiometric(payload) {
+  return requestEngine("/api/v1/biometrics", {
+    method: "POST",
+    body: JSON.stringify(payload)
   });
 }

@@ -9,8 +9,33 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
 import { TrainingProvider } from "./context/TrainingContext";
 
+const MUSIC_PREFERENCES_KEY = "musicPreferences";
+
+function hasCompletedSurvey(userId) {
+  if (!userId) {
+    return false;
+  }
+
+  try {
+    const raw = localStorage.getItem(MUSIC_PREFERENCES_KEY);
+    if (!raw) {
+      return false;
+    }
+
+    const parsed = JSON.parse(raw);
+    const sameUser = parsed?.user_id === userId;
+    const hasGenres = Array.isArray(parsed?.genres) && parsed.genres.length > 0;
+    const hasMoods = Array.isArray(parsed?.moods) && parsed.moods.length > 0;
+    return sameUser && hasGenres && hasMoods;
+  } catch {
+    return false;
+  }
+}
+
 function App() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const surveyCompleted = hasCompletedSurvey(user?.id);
+  const authenticatedHome = surveyCompleted ? "/dashboard" : "/music-survey";
 
   return (
     <TrainingProvider>
@@ -20,7 +45,7 @@ function App() {
         <Route
           path="/"
           element={
-            isAuthenticated ? <Navigate to="/music-survey" replace /> : <AuthPage />
+            isAuthenticated ? <Navigate to={authenticatedHome} replace /> : <AuthPage />
           }
         />
 
@@ -69,7 +94,7 @@ function App() {
           path="/music-survey"
           element={
             <ProtectedRoute>
-              <MusicSurveyPage />
+              {surveyCompleted ? <Navigate to="/dashboard" replace /> : <MusicSurveyPage />}
             </ProtectedRoute>
           }
         />
