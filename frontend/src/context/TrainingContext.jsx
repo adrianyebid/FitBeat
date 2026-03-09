@@ -4,21 +4,49 @@ const TrainingContext = createContext();
 
 export function TrainingProvider({ children }) {
   const [trainingSession, setTrainingSession] = useState({
+    mode: null,
     trainingType: null,
     startTime: null,
+    engineSessionId: null,
+    latestDecision: null
   });
 
+  const setTrainingMode = (mode) => {
+    setTrainingSession((prev) => ({
+      ...prev,
+      mode
+    }));
+  };
+
   const startTrainingSession = (trainingType) => {
-    setTrainingSession({
+    setTrainingSession((prev) => ({
+      ...prev,
       trainingType,
-      startTime: new Date(),
-    });
+      startTime: new Date()
+    }));
+  };
+
+  const setEngineSessionId = (engineSessionId) => {
+    setTrainingSession((prev) => ({
+      ...prev,
+      engineSessionId
+    }));
+  };
+
+  const setLatestDecision = (latestDecision) => {
+    setTrainingSession((prev) => ({
+      ...prev,
+      latestDecision
+    }));
   };
 
   const clearTrainingSession = () => {
     setTrainingSession({
+      mode: null,
       trainingType: null,
       startTime: null,
+      engineSessionId: null,
+      latestDecision: null
     });
   };
 
@@ -26,7 +54,10 @@ export function TrainingProvider({ children }) {
     <TrainingContext.Provider
       value={{
         trainingSession,
+        setTrainingMode,
         startTrainingSession,
+        setEngineSessionId,
+        setLatestDecision,
         clearTrainingSession,
       }}
     >

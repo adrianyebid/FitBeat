@@ -1,167 +1,162 @@
-    import { useState } from "react";
-    import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
-    const genres = [
-    { name: "Pop", icon: "🎤" },
-    { name: "Reggaetón", icon: "🔥" },
-    { name: "Hip-Hop", icon: "🎧" },
-    { name: "Rap", icon: "🎙️" },
-    { name: "Rock", icon: "🎸" },
-    { name: "Electrónica", icon: "🎛️" },
-    { name: "Alternativo", icon: "🎶" },
-    { name: "Clásica", icon: "🎻" },
-    { name: "Reggae", icon: "🌴" },
-    { name: "Dancehall", icon: "💃" },
-    { name: "Regional Mexicana", icon: "🤠" },
-    { name: "Baladas", icon: "❤️" }
-    ];
+const genres = [
+  { name: "Pop", icon: "P" },
+  { name: "Reggaeton", icon: "R" },
+  { name: "Hip-Hop", icon: "H" },
+  { name: "Rap", icon: "RP" },
+  { name: "Rock", icon: "RK" },
+  { name: "Electronica", icon: "E" },
+  { name: "Alternativo", icon: "A" },
+  { name: "Clasica", icon: "C" },
+  { name: "Reggae", icon: "RG" },
+  { name: "Dancehall", icon: "D" },
+  { name: "Regional Mexicana", icon: "M" },
+  { name: "Baladas", icon: "B" }
+];
 
-    const moods = [
-    { name: "Chill", icon: "🌙" },
-    { name: "Latina", icon: "💃" },
-    { name: "Tristeza", icon: "🥀" },
-    { name: "Nostalgia", icon: "🕰️" },
-    { name: "Serenidad", icon: "🌊" },
-    { name: "Alegría", icon: "😄" },
-    { name: "Amor", icon: "💖" },
-    { name: "Despecho", icon: "💔" },
-    { name: "Romance", icon: "🌹" },
-    { name: "Mariachi", icon: "🎺" }
-    ];
+const moods = [
+  { name: "Chill", icon: "CH" },
+  { name: "Latina", icon: "L" },
+  { name: "Tristeza", icon: "T" },
+  { name: "Nostalgia", icon: "N" },
+  { name: "Serenidad", icon: "S" },
+  { name: "Alegria", icon: "AL" },
+  { name: "Amor", icon: "AM" },
+  { name: "Despecho", icon: "DE" },
+  { name: "Romance", icon: "RO" },
+  { name: "Mariachi", icon: "MA" }
+];
 
-    function MusicSurveyPage() {
+function MusicSurveyPage() {
+  const [step, setStep] = useState(1);
+  const [selectedGenres, setSelectedGenres] = useState([]);
+  const [selectedMoods, setSelectedMoods] = useState([]);
+  const [stepError, setStepError] = useState("");
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
-    const [step, setStep] = useState(1);
-    const [selectedGenres, setSelectedGenres] = useState([]);
-    const [selectedMoods, setSelectedMoods] = useState([]);
+  function toggle(item, list, setList) {
+    setStepError("");
+    if (list.includes(item)) {
+      setList(list.filter((i) => i !== item));
+      return;
+    }
+    setList([...list, item]);
+  }
 
-    const navigate = useNavigate();
+  function nextStep() {
+    if (selectedGenres.length === 0) {
+      setStepError("Selecciona al menos un genero para continuar.");
+      return;
+    }
+    setStepError("");
+    setStep(2);
+  }
 
-    function toggle(item, list, setList) {
+  function prevStep() {
+    setStepError("");
+    setStep(1);
+  }
 
-        if (list.includes(item)) {
-        setList(list.filter(i => i !== item));
-        } else {
-        setList([...list, item]);
-        }
-
+  function finishSurvey() {
+    if (selectedMoods.length === 0) {
+      setStepError("Selecciona al menos un mood para continuar.");
+      return;
     }
 
-    function nextStep() {
-        setStep(2);
-    }
+    const preferences = {
+      user_id: user?.id || null,
+      genres: selectedGenres,
+      moods: selectedMoods,
+      updated_at: new Date().toISOString()
+    };
 
-    function prevStep() {
-        setStep(1);
-    }
+    localStorage.setItem("musicPreferences", JSON.stringify(preferences));
+    navigate("/dashboard");
+  }
 
-    function finishSurvey() {
+  return (
+    <main className="survey-layout">
+      <section className="survey-card">
+        <div className="survey-header">
+          <h1>Personaliza tu musica</h1>
+          <p>Selecciona lo que mas te motiva para entrenar</p>
+        </div>
 
-        const preferences = {
-        genres: selectedGenres,
-        moods: selectedMoods
-        };
+        {step === 1 && (
+          <>
+            <h2 className="survey-question">Que generos te gustan?</h2>
 
-        localStorage.setItem("musicPreferences", JSON.stringify(preferences));
-
-        navigate("/dashboard");
-
-    }
-
-    return (
-
-        <main className="survey-layout">
-
-        <section className="survey-card">
-
-            <div className="survey-header">
-            <h1>🎵 Personaliza tu música</h1>
-            <p>Selecciona lo que más te motiva para entrenar</p>
+            <div className="survey-options-grid">
+              {genres.map((g) => (
+                <button
+                  key={g.name}
+                  type="button"
+                  className={`survey-option-card ${selectedGenres.includes(g.name) ? "active" : ""}`}
+                  onClick={() => toggle(g.name, selectedGenres, setSelectedGenres)}
+                >
+                  <span className="survey-option-icon">{g.icon}</span>
+                  <span>{g.name}</span>
+                </button>
+              ))}
             </div>
 
-            {step === 1 && (
+            {stepError ? (
+              <div className="survey-error" role="alert">
+                {stepError}
+              </div>
+            ) : null}
 
-            <>
-                <h2 className="survey-question">¿Qué géneros te gustan?</h2>
+            <div className="survey-buttons">
+              <div></div>
+              <button type="button" className="survey-continue-btn" onClick={nextStep}>
+                Siguiente
+              </button>
+            </div>
+          </>
+        )}
 
-                <div className="options-grid">
+        {step === 2 && (
+          <>
+            <h2 className="survey-question">Que mood te motiva?</h2>
 
-                {genres.map((g) => (
-
-                    <div
-                    key={g.name}
-                    className={`option-card ${selectedGenres.includes(g.name) ? "active" : ""}`}
-                    onClick={() => toggle(g.name, selectedGenres, setSelectedGenres)}
-                    >
-
-                    <span className="icon">{g.icon}</span>
-                    <span>{g.name}</span>
-
-                    </div>
-
-                ))}
-
-                </div>
-
-                <div className="survey-buttons">
-
-                <div />
-
-                <button className="continue-btn" onClick={nextStep}>
-                    Siguiente →
+            <div className="survey-options-grid">
+              {moods.map((m) => (
+                <button
+                  key={m.name}
+                  type="button"
+                  className={`survey-option-card ${selectedMoods.includes(m.name) ? "active" : ""}`}
+                  onClick={() => toggle(m.name, selectedMoods, setSelectedMoods)}
+                >
+                  <span className="survey-option-icon">{m.icon}</span>
+                  <span>{m.name}</span>
                 </button>
+              ))}
+            </div>
 
-                </div>
+            {stepError ? (
+              <div className="survey-error" role="alert">
+                {stepError}
+              </div>
+            ) : null}
 
-            </>
+            <div className="survey-buttons">
+              <button type="button" className="survey-back-btn" onClick={prevStep}>
+                Atras
+              </button>
 
-            )}
+              <button type="button" className="survey-continue-btn" onClick={finishSurvey}>
+                Ir al dashboard
+              </button>
+            </div>
+          </>
+        )}
+      </section>
+    </main>
+  );
+}
 
-            {step === 2 && (
-
-            <>
-                <h2 className="survey-question">¿Qué mood te motiva?</h2>
-
-                <div className="options-grid">
-
-                {moods.map((m) => (
-
-                    <div
-                    key={m.name}
-                    className={`option-card ${selectedMoods.includes(m.name) ? "active" : ""}`}
-                    onClick={() => toggle(m.name, selectedMoods, setSelectedMoods)}
-                    >
-
-                    <span className="icon">{m.icon}</span>
-                    <span>{m.name}</span>
-
-                    </div>
-
-                ))}
-
-                </div>
-
-                <div className="survey-buttons">
-
-                <button className="back-btn" onClick={prevStep}>
-                    ← Atrás
-                </button>
-
-                <button className="continue-btn" onClick={finishSurvey}>
-                    Ir al Dashboard
-                </button>
-
-                </div>
-
-            </>
-
-            )}
-
-        </section>
-
-        </main>
-
-    );
-    }
-
-    export default MusicSurveyPage;
+export default MusicSurveyPage;

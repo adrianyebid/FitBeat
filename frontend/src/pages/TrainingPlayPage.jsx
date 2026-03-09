@@ -1,101 +1,173 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTraining } from "../context/TrainingContext";
-import { saveTrainingSession } from "../api/trainingApi";
+import { createEngineSession, sendBiometric } from "../api/trainingApi";
+
+function randomHeartRate() {
+  return Math.floor(85 + Math.random() * 75);
+}
 
 function TrainingPlayPage() {
   const { trainingType } = useParams();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { trainingSession, startTrainingSession, clearTrainingSession } =
-    useTraining();
+  const {
+    trainingSession,
+    startTrainingSession,
+    setEngineSessionId,
+    setLatestDecision,
+    clearTrainingSession
+  } = useTraining();
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [currentTrack, setCurrentTrack] = useState({
-    name: "Conectando con Spotify",
-    artist: "Web Playback SDK",
-    albumArt: null,
-  });
+  const [error, setError] = useState("");
 
-  const trainingNames = {
-    running: "Running",
-    lifting: "Lifting",
-    hiking: "Hiking",
-    crossfit: "Crossfit",
-    hitt: "HIIT",
-    cycling: "Cycling",
-    mindfulness: "Mindfulness",
-  };
+  const trainingNames = useMemo(
+    () => ({
+      running: "Running",
+      lifting: "Lifting",
+      hiking: "Hiking",
+      crossfit: "Crossfit",
+      hitt: "HIIT",
+      cycling: "Cycling",
+      mindfulness: "Mindfulness"
+    }),
+    []
+  );
 
-  const trainingIcons = {
-    running: "🏃",
-    lifting: "🏋️",
-    hiking: "🥾",
-    crossfit: "💪",
-    hitt: "⚡",
-    cycling: "🚴",
-    mindfulness: "🧘",
-  };
+  const trainingIcons = useMemo(
+    () => ({
+      running: "RUN",
+      lifting: "LFT",
+      hiking: "HKG",
+      crossfit: "CFT",
+      hitt: "HIIT",
+      cycling: "CYC",
+      mindfulness: "ZEN"
+    }),
+    []
+  );
+
+  const currentTrack = trainingSession.latestDecision?.track
+    ? {
+        name: trainingSession.latestDecision.track.title,
+        artist: trainingSession.latestDecision.track.artist
+      }
+    : {
+        name: "Esperando recomendacion",
+        artist: "Motor de musica"
+      };
 
   useEffect(() => {
-    // Iniciar sesión de entrenamiento
     startTrainingSession(trainingType);
   }, [trainingType, startTrainingSession]);
 
   useEffect(() => {
-    let interval;
+    if (!user?.id || !trainingType || trainingSession.engineSessionId) {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function bootstrapSession() {
+      setError("");
+      try {
+        const response = await createEngineSession({
+          user_id: user.id,
+          activity_type: trainingType,
+          mode: trainingSession.mode || "manual"
+        });
+
+        const createdId = response?.data?.id;
+        if (!createdId) {
+          throw new Error("No session id returned by engine");
+        }
+
+        if (isMounted) {
+          setEngineSessionId(createdId);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err?.message || "No se pudo crear la sesion en el motor.");
+        }
+      }
+    }
+
+    bootstrapSession();
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    user?.id,
+    trainingType,
+    trainingSession.engineSessionId,
+    trainingSession.mode,
+    setEngineSessionId
+  ]);
+
+  useEffect(() => {
+    let intervalId;
     if (isPlaying) {
-      interval = setInterval(() => {
+      intervalId = setInterval(() => {
         setElapsedTime((prev) => prev + 1);
       }, 1000);
     }
-    return () => clearInterval(interval);
+    return () => clearInterval(intervalId);
   }, [isPlaying]);
 
+  useEffect(() => {
+    if (!isPlaying || !trainingSession.engineSessionId) {
+      return;
+    }
+
+    let active = true;
+
+    async function pushBiometric() {
+      try {
+        const response = await sendBiometric({
+          session_id: trainingSession.engineSessionId,
+          heart_rate: randomHeartRate()
+        });
+        if (active && response?.data) {
+          setLatestDecision(response.data);
+          setError("");
+        }
+      } catch (err) {
+        if (active) {
+          setError(err?.message || "Error enviando BPM al motor.");
+        }
+      }
+    }
+
+    pushBiometric();
+    const biometricInterval = setInterval(pushBiometric, 8000);
+
+    return () => {
+      active = false;
+      clearInterval(biometricInterval);
+    };
+  }, [isPlaying, trainingSession.engineSessionId, setLatestDecision]);
+
   const handleTogglePlay = () => {
-    setIsPlaying(!isPlaying);
-  };
-
-  const handleNextTrack = () => {
-    console.log("Siguiente canción");
-    // Aquí irá la lógica para Spotify Web Playback SDK
-  };
-
-  const handlePreviousTrack = () => {
-    console.log("Canción anterior");
-    // Aquí irá la lógica para Spotify Web Playback SDK
+    if (!trainingSession.engineSessionId) {
+      setError("Aun no existe sesion activa en el motor.");
+      return;
+    }
+    setIsPlaying((prev) => !prev);
   };
 
   const handleFinishSession = async () => {
     setIsLoading(true);
-    setError(null);
+    setError("");
 
     try {
-      // Calcular duración
-      const duration = Math.floor((new Date() - trainingSession.startTime) / 1000);
-
-      // Preparar datos para enviar al backend
-      const sessionData = {
-        userId: user?.id,
-        trainingType: trainingType,
-        duration: duration,
-        startTime: trainingSession.startTime,
-        endTime: new Date(),
-      };
-
-      // Enviar datos al backend
-      const response = await saveTrainingSession(sessionData);
-      console.log("Sesión guardada:", response);
-
-      // Limpiar sesión y navegar
       clearTrainingSession();
       navigate("/dashboard");
-    } catch (err) {
-      console.error("Error al guardar sesión:", err);
-      setError("Error al guardar la sesión. Intenta de nuevo.");
+    } catch {
+      setError("Error al finalizar sesion.");
       setIsLoading(false);
     }
   };
@@ -115,9 +187,7 @@ function TrainingPlayPage() {
         .toString()
         .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
     }
-    return `${minutes.toString().padStart(2, "0")}:${secs
-      .toString()
-      .padStart(2, "0")}`;
+    return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
   return (
@@ -128,51 +198,30 @@ function TrainingPlayPage() {
           className="ghost-btn back-btn"
           onClick={handleBackToTraining}
         >
-          ← Atrás
+          Atras
         </button>
         <button type="button" className="ghost-btn" onClick={logout}>
-          Cerrar sesión
+          Cerrar sesion
         </button>
       </header>
 
       <section className="training-play-content">
         <div className="training-type-display">
-          <div className="training-type-icon">
-            {trainingIcons[trainingType] || "🏋️"}
-          </div>
+          <div className="training-type-icon">{trainingIcons[trainingType] || "TRN"}</div>
           <h1>{trainingNames[trainingType] || "Entrenamiento"}</h1>
         </div>
 
-        {/* Timer */}
         <div className="timer-container">
           <div className="timer-display">{formatTime(elapsedTime)}</div>
-          <p className="timer-label">Duración</p>
+          <p className="timer-label">Duracion</p>
         </div>
 
-        {/* Music Player */}
         <div className="music-player">
-          {/* Album Art */}
-          <div className="album-art-container">
-            {currentTrack.albumArt ? (
-              <img
-                src={currentTrack.albumArt}
-                alt="Portada del álbum"
-                className="album-art"
-              />
-            ) : (
-              <div className="album-art-placeholder">
-                <span className="placeholder-icon">🎵</span>
-              </div>
-            )}
-          </div>
-
-          {/* Track Info */}
           <div className="player-info">
             <p className="now-playing">{currentTrack.name}</p>
             <p className="track-artist">{currentTrack.artist}</p>
           </div>
 
-          {/* Progress Bar */}
           <div className="player-progress">
             <div className="progress-bar">
               <div className="progress-fill"></div>
@@ -183,15 +232,14 @@ function TrainingPlayPage() {
             </div>
           </div>
 
-          {/* Player Controls */}
           <div className="player-controls">
             <button
               type="button"
               className="control-btn prev-btn"
-              onClick={handlePreviousTrack}
               title="Anterior"
+              disabled
             >
-              ⏮
+              Prev
             </button>
             <button
               type="button"
@@ -199,42 +247,42 @@ function TrainingPlayPage() {
               onClick={handleTogglePlay}
               title={isPlaying ? "Pausar" : "Reproducir"}
             >
-              {isPlaying ? "⏸" : "▶"}
+              {isPlaying ? "Pause" : "Play"}
             </button>
             <button
               type="button"
               className="control-btn next-btn"
-              onClick={handleNextTrack}
               title="Siguiente"
+              disabled
             >
-              ⏭
+              Next
             </button>
           </div>
 
-          {/* Playlist */}
           <div className="player-playlist">
-            <h3>Cola de reproducción</h3>
+            <h3>Sesion del motor</h3>
             <p className="empty-playlist">
-              Se conectará a Spotify cuando esté integrado
+              Session ID: {trainingSession.engineSessionId || "pendiente"}
+            </p>
+            <p className="empty-playlist">
+              Intensidad: {trainingSession.latestDecision?.intensity_level || "sin datos"}
             </p>
           </div>
         </div>
 
-        {/* Error Message */}
-        {error && (
-          <div className="api-error" style={{ maxWidth: "300px" }}>
+        {error ? (
+          <div className="api-error" style={{ maxWidth: "460px" }}>
             <p>{error}</p>
           </div>
-        )}
+        ) : null}
 
-        {/* Finish Session Button */}
         <button
           type="button"
           className="finish-btn"
           onClick={handleFinishSession}
           disabled={isLoading}
         >
-          {isLoading ? "Guardando..." : "Finalizar Sesión"}
+          {isLoading ? "Guardando..." : "Finalizar sesion"}
         </button>
       </section>
     </main>

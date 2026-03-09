@@ -1,19 +1,18 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useTraining } from "../context/TrainingContext";
 
 function TrainingPage() {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const navigate = useNavigate();
+  const { setTrainingMode } = useTraining();
   const [selectedMode, setSelectedMode] = useState(null);
 
   const handleSelectMode = (mode) => {
     setSelectedMode(mode);
-    // Navegar según el modo seleccionado
-    if (mode === "manual") {
-      navigate("/training/select-type");
-    }
-    console.log(`Modo de entrenamiento seleccionado: ${mode}`);
+    setTrainingMode(mode);
+    navigate("/training/select-type");
   };
 
   const handleBackToDashboard = () => {
@@ -28,17 +27,17 @@ function TrainingPage() {
           className="ghost-btn back-btn"
           onClick={handleBackToDashboard}
         >
-          ← Atrás
+          Atras
         </button>
         <button type="button" className="ghost-btn" onClick={logout}>
-          Cerrar sesión
+          Cerrar sesion
         </button>
       </header>
 
       <section className="training-content">
         <div className="training-intro">
           <h1>Comienza tu entrenamiento</h1>
-          <p>Selecciona cómo deseas registrar tu actividad</p>
+          <p>Selecciona como deseas registrar tu actividad</p>
         </div>
 
         <div className="training-cards">
@@ -46,9 +45,9 @@ function TrainingPage() {
             className={`training-card ${selectedMode === "smartwatch" ? "selected" : ""}`}
             onClick={() => handleSelectMode("smartwatch")}
           >
-            <div className="card-icon">⌚</div>
+            <div className="card-icon">SW</div>
             <h2>Smartwatch</h2>
-            <p>Sincroniza con tu dispositivo inteligente para tracking automático</p>
+            <p>Sincroniza con tu dispositivo inteligente para tracking automatico</p>
             <button type="button" className="card-btn">
               Usar Smartwatch
             </button>
@@ -58,7 +57,7 @@ function TrainingPage() {
             className={`training-card ${selectedMode === "manual" ? "selected" : ""}`}
             onClick={() => handleSelectMode("manual")}
           >
-            <div className="card-icon">✋</div>
+            <div className="card-icon">M</div>
             <h2>Manual</h2>
             <p>Registra manualmente tu entrenamiento ingresando los datos</p>
             <button type="button" className="card-btn">

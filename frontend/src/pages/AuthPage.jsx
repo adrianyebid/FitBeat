@@ -60,7 +60,7 @@ function AuthPage() {
       } else {
         await register(form);
       }
-      navigate("/dashboard");
+      navigate("/");
     } catch (error) {
       setApiError(error.message || "No se pudo completar la solicitud");
       setApiDetails(error.details || []);
@@ -75,9 +75,9 @@ function AuthPage() {
         <div className="fitbeat-logo">
           <img src={logoImage} alt="FitBeat Logo" className="fitbeat-logo-img" />
         </div>
-        
+
         <h1>FitBeat</h1>
-        <p>Entrena con ritmo. Supera tus límites.</p>
+        <p>Entrena con ritmo. Supera tus limites.</p>
       </section>
 
       <section className="form-panel">
@@ -90,7 +90,7 @@ function AuthPage() {
                   id="email-field"
                   name="email"
                   type="email"
-                  placeholder="Correo electrónico"
+                  placeholder="Correo electronico"
                   value={form.email}
                   onChange={updateField}
                 />
@@ -105,7 +105,7 @@ function AuthPage() {
                   id="password-field"
                   name="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Contraseña"
+                  placeholder="Contrasena"
                   value={form.password}
                   onChange={updateField}
                 />
@@ -136,22 +136,26 @@ function AuthPage() {
 
             <div className="form-helpers">
               <a href="#" className="forgot-password">
-                ¿Olvidaste tu contraseña?
+                Olvidaste tu contrasena?
               </a>
             </div>
 
             <button type="submit" className="primary-btn" disabled={isSubmitting}>
-              {isSubmitting ? "Procesando..." : "Iniciar Sesión"}
+              {isSubmitting ? "Procesando..." : "Iniciar Sesion"}
             </button>
 
             <div className="form-helpers">
               <div className="signup-prompt">
                 No tienes una cuenta?{" "}
-                <a href="#" className="signup-link" onClick={(e) => {
-                  e.preventDefault();
-                  switchMode("register");
-                }}>
-                  Regístrate
+                <a
+                  href="#"
+                  className="signup-link"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    switchMode("register");
+                  }}
+                >
+                  Registrate
                 </a>
               </div>
             </div>
@@ -210,7 +214,7 @@ function AuthPage() {
                   id="reg-password-field"
                   name="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Contraseña"
+                  placeholder="Contrasena"
                   value={form.password}
                   onChange={updateField}
                 />
@@ -244,12 +248,16 @@ function AuthPage() {
             </button>
 
             <div className="signup-prompt">
-              ¿Ya tienes una cuenta?{" "}
-              <a href="#" className="signup-link" onClick={(e) => {
-                e.preventDefault();
-                switchMode("login");
-              }}>
-                Iniciar Sesión
+              Ya tienes una cuenta?{" "}
+              <a
+                href="#"
+                className="signup-link"
+                onClick={(e) => {
+                  e.preventDefault();
+                  switchMode("login");
+                }}
+              >
+                Iniciar Sesion
               </a>
             </div>
           </form>
