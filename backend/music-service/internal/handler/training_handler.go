@@ -16,9 +16,12 @@ type TrainingHandler struct {
 
 // createSessionRequest define los campos requeridos para iniciar una sesión de entrenamiento.
 type createSessionRequest struct {
-	UserID       string `json:"user_id"`
-	ActivityType string `json:"activity_type"` // ej: "running", "cycling"
-	Mode         string `json:"mode"`          // ej: "automatic", "manual"
+	UserID       string   `json:"user_id"`
+	ActivityType string   `json:"activity_type"` // ej: "running", "cycling"
+	Mode         string   `json:"mode"`          // ej: "automatic", "manual"
+	Genres       []string `json:"genres"`        // géneros musicales preferidos del usuario
+	Moods        []string `json:"moods"`         // moods preferidos del usuario
+	SpotifyToken string   `json:"spotify_token"` // access token de Spotify del usuario
 }
 
 func NewTrainingHandler(engineService *service.EngineService) *TrainingHandler {
@@ -46,23 +49,40 @@ func (h *TrainingHandler) CreateSession(c *gin.Context) {
 	if strings.TrimSpace(req.Mode) == "" {
 		details = append(details, "mode is required")
 	}
+	if len(req.Genres) == 0 {
+		details = append(details, "genres is required and must not be empty")
+	}
+	if len(req.Moods) == 0 {
+		details = append(details, "moods is required and must not be empty")
+	}
+	if strings.TrimSpace(req.SpotifyToken) == "" {
+		details = append(details, "spotify_token is required")
+	}
 
 	if len(details) > 0 {
 		c.JSON(http.StatusBadRequest, errorResponse("validation failed", details))
 		return
 	}
 
-	session, err := h.engineService.CreateSession(service.CreateSessionInput{
+	output, err := h.engineService.CreateSession(service.CreateSessionInput{
 		UserID:       req.UserID,
 		ActivityType: req.ActivityType,
 		Mode:         req.Mode,
+		Genres:       req.Genres,
+		Moods:        req.Moods,
+		SpotifyToken: req.SpotifyToken,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, errorResponse("failed to create session", nil))
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": session})
+	c.JSON(http.StatusCreated, gin.H{
+		"data": gin.H{
+			"session": output.Session,
+			"tracks":  output.TrackURIs,
+		},
+	})
 }
 
 // errorResponse construye el formato de error estándar de la API.
