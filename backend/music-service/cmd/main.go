@@ -24,7 +24,7 @@ func main() {
 	}))
 	engineRepository, err := repository.NewCouchDBRepository(cfg.CouchDBAddr)
 	if err != nil {
-		log.Fatalf("Failed to connect to CouchDB (%s): %v", cfg.CouchDBAddr, err)
+		log.Fatalf("Failed to connect to CouchDB: %v", err)
 	}
 	engineService := service.NewEngineService(engineRepository)
 
