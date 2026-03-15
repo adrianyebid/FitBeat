@@ -1,0 +1,30 @@
+# Entorno virtual local
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Control de versiones
+.git/
+.gitignore
+
+# IDE y editores
+.vscode/
+.idea/
+.gemini/
+
+# Variables de entorno (se inyectan via docker-compose)
+.env
+
+# Docker (evitar recursividad)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Documentación
+README.md
+LICENSE
+
+# Datos locales
+postgres_data/

@@ -36,3 +36,52 @@ backend/music-service/bin/
 backend/music-service/tmp/
 backend/music-service/coverage.out
 backend/music-service/*.test
+# ===================================================
+# .gitignore — Componente A (Python / FastAPI)
+# ===================================================
+
+# ─────────── Entorno Virtual ───────────
+venv/
+.venv/
+env/
+
+# ─────────── Bytecode de Python ───────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# ─────────── Variables de Entorno ───────────
+.env
+.env.*
+!.env.example
+
+# ─────────── IDE y Editores ───────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.gemini/
+
+# ─────────── Docker ───────────
+postgres_data/
+
+# ─────────── Distribución / Build ───────────
+dist/
+build/
+*.egg-info/
+*.egg
+
+# ─────────── Testing y Cobertura ───────────
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ─────────── Logs ───────────
+*.log
+
+# ─────────── OS ───────────
+.DS_Store
+Thumbs.db
+desktop.ini

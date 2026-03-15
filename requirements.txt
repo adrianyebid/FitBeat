@@ -1,0 +1,23 @@
+# ===================================================
+# Componente A — Dependencias del Prototipo 1
+# ===================================================
+# Servidor Web
+fastapi
+uvicorn[standard]
+
+# Base de datos (PostgreSQL + ORM)
+sqlalchemy
+psycopg2-binary
+
+# Validación de esquemas y configuración
+pydantic
+pydantic-settings
+
+# Comunicación con la API de Spotify
+requests
+
+# Manejo de variables de entorno (.env)
+python-dotenv
+
+# Cifrado de datos en reposo (CWE-312 — Fase futura)
+cryptography
