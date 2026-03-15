@@ -1,6 +1,6 @@
 # FitBeat Frontend
 
-Frontend en React + Vite para autenticacion contra backend Spring Boot.
+Frontend en React + Vite para autenticacion contra Componente A (FastAPI).
 
 ## Lo implementado hasta ahora
 
@@ -25,14 +25,16 @@ Frontend en React + Vite para autenticacion contra backend Spring Boot.
 npm install
 ```
 
-2. Configura URL del backend (opcional):
+2. Configura URLs de los servicios (opcional):
 
 ```bash
 # archivo .env
-VITE_API_BASE_URL=http://localhost:8080
+VITE_AUTH_API_URL=http://localhost:8000
+VITE_MUSIC_API_URL=http://localhost:8081
+VITE_WS_API_URL=ws://localhost:8081
 ```
 
-Si no configuras `.env`, usa `http://localhost:8080` por defecto.
+Si no configuras `.env`, el frontend usa esos mismos valores por defecto.
 
 3. Levanta el frontend:
 
