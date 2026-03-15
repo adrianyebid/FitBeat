@@ -7,8 +7,7 @@ export function TrainingProvider({ children }) {
     mode: null,
     trainingType: null,
     startTime: null,
-    engineSessionId: null,
-    latestDecision: null
+    engineSessionId: null
   });
 
   const setTrainingMode = (mode) => {
@@ -33,20 +32,12 @@ export function TrainingProvider({ children }) {
     }));
   };
 
-  const setLatestDecision = (latestDecision) => {
-    setTrainingSession((prev) => ({
-      ...prev,
-      latestDecision
-    }));
-  };
-
   const clearTrainingSession = () => {
     setTrainingSession({
       mode: null,
       trainingType: null,
       startTime: null,
-      engineSessionId: null,
-      latestDecision: null
+      engineSessionId: null
     });
   };
 
@@ -57,7 +48,6 @@ export function TrainingProvider({ children }) {
         setTrainingMode,
         startTrainingSession,
         setEngineSessionId,
-        setLatestDecision,
         clearTrainingSession,
       }}
     >

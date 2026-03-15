@@ -1,20 +1,81 @@
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { redirectToSpotifyLogin, verifySpotifyConnection } from "../api/authApi";
 import { useAuth } from "../context/AuthContext";
 
 function DashboardPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const fullName = `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim();
 
+  const [spotifyStatus, setSpotifyStatus] = useState("idle");
+  const [spotifyMessage, setSpotifyMessage] = useState("");
+
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
+    let active = true;
+
+    async function checkSpotifyStatus() {
+      setSpotifyStatus("loading");
+      try {
+        await verifySpotifyConnection(user.id);
+        if (active) {
+          setSpotifyStatus("connected");
+          setSpotifyMessage("Spotify conectado");
+        }
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+        if (error?.statusCode === 404) {
+          setSpotifyStatus("disconnected");
+          setSpotifyMessage("Spotify no conectado");
+        } else {
+          setSpotifyStatus("error");
+          setSpotifyMessage(error?.message || "No se pudo verificar Spotify");
+        }
+      }
+    }
+
+    checkSpotifyStatus();
+    return () => {
+      active = false;
+    };
+  }, [user?.id, location.key]);
+
+  useEffect(() => {
+    const search = new URLSearchParams(location.search);
+    if (search.get("spotify") === "connected") {
+      setSpotifyMessage("Spotify conectado correctamente.");
+      setSpotifyStatus("connected");
+      navigate("/dashboard", { replace: true });
+    }
+  }, [location.search, navigate]);
+
   const handleStartTraining = () => {
+    if (spotifyStatus !== "connected") {
+      setSpotifyMessage("Conecta Spotify antes de iniciar entrenamiento.");
+      return;
+    }
     navigate("/training");
+  };
+
+  const handleConnectSpotify = () => {
+    if (!user?.id) {
+      return;
+    }
+    redirectToSpotifyLogin(user.id);
   };
 
   return (
     <main className="dashboard-layout">
       <header className="dashboard-header">
         <button type="button" className="ghost-btn close-btn" onClick={logout}>
-          Cerrar sesión
+          Cerrar sesion
         </button>
       </header>
 
@@ -24,6 +85,29 @@ function DashboardPage() {
           <h1 className="welcome-title">Bienvenido</h1>
           <h2 className="welcome-user">{fullName || "Usuario"}</h2>
           <p>{user?.email ?? "Sin correo"}</p>
+
+          <p>
+            Spotify:{" "}
+            {spotifyStatus === "loading"
+              ? "verificando..."
+              : spotifyStatus === "connected"
+                ? "conectado"
+                : spotifyStatus === "disconnected"
+                  ? "no conectado"
+                  : spotifyStatus === "error"
+                    ? "error"
+                    : "sin verificar"}
+          </p>
+          {spotifyMessage ? <p>{spotifyMessage}</p> : null}
+
+          <button
+            type="button"
+            className="primary-btn primary-btn-small"
+            onClick={handleConnectSpotify}
+          >
+            {spotifyStatus === "connected" ? "Reconectar Spotify" : "Conectar Spotify"}
+          </button>
+
           <button
             type="button"
             className="primary-btn primary-btn-small"

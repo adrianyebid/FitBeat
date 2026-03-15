@@ -1,30 +1,38 @@
 from fastapi import FastAPI
-from src.core.database import engine, Base
+from fastapi.middleware.cors import CORSMiddleware
 
-# 1. Importamos los routers
-from src.users.infrastructure.routers import user_router
+from src.auth.infrastructure.local_auth_router import local_auth_router
 from src.auth.infrastructure.routers import auth_router
+from src.core.config import settings
+from src.core.database import Base, engine
+from src.users.infrastructure.routers import user_router
 
-# 2. Importamos los modelos de SQLAlchemy ANTES de crear las tablas.
-from src.users.infrastructure import models as user_models
-from src.auth.infrastructure import models as auth_models
+# Importar modelos antes de create_all para registrar todas las tablas.
+from src.auth.infrastructure import models as auth_models  # noqa: F401
+from src.users.infrastructure import models as user_models  # noqa: F401
 
-# 3.va a PostgreSQL y crea todas las tablas
-# que hereden de 'Base' (users, spotify_tokens, etc.) si aún no existen.
 Base.metadata.create_all(bind=engine)
 
-# 4. Inicializamos la aplicación FastAPI
 app = FastAPI(
-    title="API Prototipo 1",
-    description="Backend para sincronización de ritmo cardíaco y Spotify",
-    version="1.0.0"
+    title="FitBeat Component A API",
+    description="Usuarios, autenticacion local y OAuth Spotify",
+    version="1.1.0",
 )
 
-# 5. Conectamos los routers 
+allowed_origins = ["http://localhost:5173", settings.FRONTEND_APP_URL]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=list(dict.fromkeys(allowed_origins)),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(user_router)
 app.include_router(auth_router)
+app.include_router(local_auth_router)
 
-# Un endpoint de prueba para saber que la raíz funciona
+
 @app.get("/")
 def read_root():
-    return {"status": "¡El Componente A está funcionando!"}
+    return {"status": "Componente A funcionando"}

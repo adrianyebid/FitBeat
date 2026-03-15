@@ -1,57 +1,92 @@
 import { createContext, useContext, useMemo, useState } from "react";
-import { login as loginRequest, register as registerRequest } from "../api/authApi";
+import {
+  login as loginRequest,
+  refreshSession as refreshSessionRequest,
+  register as registerRequest
+} from "../api/authApi";
 import { mockUser, USE_MOCK_DATA } from "../api/mockData";
-
-const USER_STORAGE_KEY = "fitbeat-user";
+import { clearAuthSession, persistAuthSession, readAuthSession } from "../utils/authStorage";
 
 const AuthContext = createContext(null);
 
-function readStoredUser() {
-  try {
-    const raw = localStorage.getItem(USER_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
+function normalizeAuthResult(result) {
+  const user = result?.user || null;
+  const accessToken = result?.accessToken || result?.access_token || "";
+  const refreshToken = result?.refreshToken || result?.refresh_token || "";
 
-function persistUser(user) {
-  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+  if (!user) {
+    throw new Error("Respuesta de autenticacion invalida: falta user.");
+  }
+
+  return {
+    user,
+    accessToken,
+    refreshToken
+  };
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    const stored = readStoredUser();
-    // En desarrollo, usar datos mock si no hay usuario guardado
-    if (!stored && USE_MOCK_DATA) {
-      persistUser(mockUser);
-      return mockUser;
+  const [session, setSession] = useState(() => {
+    const stored = readAuthSession();
+    if (stored?.user) {
+      return stored;
     }
-    return stored;
+
+    // En desarrollo, usar datos mock si no hay sesion guardada
+    if (USE_MOCK_DATA) {
+      const mockSession = {
+        user: mockUser,
+        accessToken: "",
+        refreshToken: ""
+      };
+      persistAuthSession(mockSession);
+      return mockSession;
+    }
+
+    return null;
   });
 
   const value = useMemo(
     () => ({
-      user,
-      isAuthenticated: Boolean(user),
+      user: session?.user || null,
+      accessToken: session?.accessToken || "",
+      refreshToken: session?.refreshToken || "",
+      isAuthenticated: Boolean(session?.user),
       async login(form) {
         const result = await loginRequest(form);
-        setUser(result.user);
-        persistUser(result.user);
+        const normalized = normalizeAuthResult(result);
+        setSession(normalized);
+        persistAuthSession(normalized);
         return result;
       },
       async register(form) {
         const result = await registerRequest(form);
-        setUser(result.user);
-        persistUser(result.user);
+        const normalized = normalizeAuthResult(result);
+        setSession(normalized);
+        persistAuthSession(normalized);
         return result;
       },
+      async refreshAuthSession() {
+        const tokens = await refreshSessionRequest();
+        const current = readAuthSession();
+        if (!current?.user) {
+          return null;
+        }
+        const updated = {
+          ...current,
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken
+        };
+        setSession(updated);
+        persistAuthSession(updated);
+        return updated;
+      },
       logout() {
-        setUser(null);
-        localStorage.removeItem(USER_STORAGE_KEY);
+        setSession(null);
+        clearAuthSession();
       }
     }),
-    [user]
+    [session]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -64,4 +99,3 @@ export function useAuth() {
   }
   return context;
 }
-

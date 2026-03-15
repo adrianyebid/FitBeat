@@ -1,7 +1,7 @@
-const DEFAULT_ENGINE_BASE_URL = "http://localhost:8081";
+const DEFAULT_MUSIC_API_URL = "http://localhost:8081";
 
-const ENGINE_BASE_URL = (
-  import.meta.env.VITE_MUSIC_ENGINE_BASE_URL || DEFAULT_ENGINE_BASE_URL
+const MUSIC_API_URL = (
+  import.meta.env.VITE_MUSIC_API_URL || DEFAULT_MUSIC_API_URL
 ).replace(/\/$/, "");
 
 async function parseResponse(response) {
@@ -29,7 +29,7 @@ function normalizeApiError(statusCode, payload) {
 }
 
 async function requestEngine(path, options = {}) {
-  const response = await fetch(`${ENGINE_BASE_URL}${path}`, {
+  const response = await fetch(`${MUSIC_API_URL}${path}`, {
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {})
@@ -46,13 +46,6 @@ async function requestEngine(path, options = {}) {
 
 export function createEngineSession(payload) {
   return requestEngine("/api/v1/sessions", {
-    method: "POST",
-    body: JSON.stringify(payload)
-  });
-}
-
-export function sendBiometric(payload) {
-  return requestEngine("/api/v1/biometrics", {
     method: "POST",
     body: JSON.stringify(payload)
   });
