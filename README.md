@@ -148,6 +148,75 @@ npm run dev
 
 App en `http://localhost:5173`.
 
+## Guia de prueba end-to-end (frontend)
+
+### 1) Preparar entorno
+
+1. En la raiz, crear `.env` usando [`.env.example`](c:/FitBeat/.env.example).
+2. Verificar al menos:
+   - `FRONTEND_APP_URL=http://localhost:5173`
+   - `JWT_SECRET_KEY` (no usar default en ambientes compartidos)
+   - `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `REDIRECT_URI` (si se probara Spotify)
+3. En frontend, crear `frontend/.env` usando [`frontend/.env.example`](c:/FitBeat/frontend/.env.example).
+
+### 2) Levantar servicios
+
+1. Componente A + Postgres:
+```bash
+docker-compose up --build
+```
+2. Componente B:
+```bash
+cd backend/music-service
+go run cmd/main.go
+```
+3. Frontend:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### 3) Probar flujo completo en UI
+
+1. Abrir `http://localhost:5173`.
+2. En `/`, registrarse o iniciar sesion.
+3. Completar encuesta en `/music-survey` (si aplica).
+4. En `/dashboard`, pulsar `Conectar Spotify` y completar OAuth.
+5. Verificar retorno a dashboard con estado de Spotify conectado.
+6. Pulsar `Comenzar entrenamiento` y recorrer:
+   - `/training`
+   - `/training/select-type`
+   - `/training/play/:trainingType`
+7. En reproductor, probar acciones WS:
+   - `previous`
+   - `play/pause`
+   - `next`
+
+### 4) Rutas protegidas esperadas
+
+- Si no hay sesion valida, cualquier ruta protegida redirige a `/`.
+- Rutas protegidas:
+  - `/dashboard`
+  - `/music-survey`
+  - `/training`
+  - `/training/select-type`
+  - `/training/play/:trainingType`
+
+### 5) Verificaciones tecnicas recomendadas
+
+- Login/registro retornan tokens y se guardan en localStorage (`fitbeat-auth`).
+- Requests hacia Componente A incluyen `Authorization: Bearer <accessToken>`.
+- Al pedir token interno Spotify, debe pasar autenticacion del usuario.
+- Si Spotify devuelve expiracion durante reproduccion, frontend intenta refresh y reintento.
+
+### 6) Reset rapido de pruebas
+
+Si necesitan empezar de cero en navegador, borrar estas keys de localStorage:
+- `fitbeat-auth`
+- `fitbeat-user`
+- `musicPreferences`
+
 ## Notas
 
 - Existe `backend/target/...` con artefactos Java antiguos; no forma parte del backend activo actual.
