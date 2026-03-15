@@ -84,3 +84,7 @@ export function buildMusicPayloadFromSurvey(userId) {
     categories,
   };
 }
+
+export function clearMusicPreferences() {
+  localStorage.removeItem(MUSIC_PREFERENCES_KEY);
+}

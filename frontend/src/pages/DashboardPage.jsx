@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { redirectToSpotifyLogin, verifySpotifyConnection } from "../api/authApi";
 import { useAuth } from "../context/AuthContext";
@@ -11,6 +11,8 @@ function DashboardPage() {
 
   const [spotifyStatus, setSpotifyStatus] = useState("idle");
   const [spotifyMessage, setSpotifyMessage] = useState("");
+  const lastSpotifyCheckRef = useRef(0);
+  const spotifyCheckInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!user?.id) {
@@ -18,8 +20,17 @@ function DashboardPage() {
     }
 
     let active = true;
+    const now = Date.now();
+    const COOLDOWN_MS = 30000;
+    if (spotifyCheckInFlightRef.current) {
+      return;
+    }
+    if (now - lastSpotifyCheckRef.current < COOLDOWN_MS) {
+      return;
+    }
 
     async function checkSpotifyStatus() {
+      spotifyCheckInFlightRef.current = true;
       setSpotifyStatus("loading");
       try {
         await verifySpotifyConnection(user.id);
@@ -38,6 +49,9 @@ function DashboardPage() {
           setSpotifyStatus("error");
           setSpotifyMessage(error?.message || "No se pudo verificar Spotify");
         }
+      } finally {
+        spotifyCheckInFlightRef.current = false;
+        lastSpotifyCheckRef.current = Date.now();
       }
     }
 
@@ -45,13 +59,14 @@ function DashboardPage() {
     return () => {
       active = false;
     };
-  }, [user?.id, location.key]);
+  }, [user?.id]);
 
   useEffect(() => {
     const search = new URLSearchParams(location.search);
     if (search.get("spotify") === "connected") {
       setSpotifyMessage("Spotify conectado correctamente.");
       setSpotifyStatus("connected");
+      lastSpotifyCheckRef.current = Date.now();
       navigate("/dashboard", { replace: true });
     }
   }, [location.search, navigate]);

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTraining } from "../context/TrainingContext";
 import { createEngineSession } from "../api/trainingApi";
-import { getSpotifyInternalToken } from "../api/authApi";
+import { getSpotifyInternalToken, getSpotifyNowPlaying } from "../api/authApi";
 import {
   connectPlayerSocket,
   disconnectPlayerSocket,
@@ -139,10 +139,11 @@ function TrainingPlayPage() {
   const trainingName = TRAINING_NAMES[normalizedTrainingType] || "Entrenamiento";
   const trainingIcon = TRAINING_ICONS[normalizedTrainingType] || "\u{1F3CB}\uFE0F";
 
-  const currentTrack = {
+  const [currentTrack, setCurrentTrack] = useState({
     name: "Spotify queue",
     artist: "Controlado por WebSocket"
-  };
+  });
+  const nowPlayingInFlightRef = useRef(false);
 
   useEffect(() => {
     startTrainingSession(normalizedTrainingType);
@@ -360,6 +361,62 @@ function TrainingPlayPage() {
       disconnectPlayerSocket();
     };
   }, [spotifyToken, trainingSession.engineSessionId, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || !trainingSession.engineSessionId) {
+      return;
+    }
+
+    let active = true;
+    let intervalId;
+
+    async function fetchNowPlaying() {
+      if (nowPlayingInFlightRef.current) {
+        return;
+      }
+      nowPlayingInFlightRef.current = true;
+
+      try {
+        const payload = await getSpotifyNowPlaying(user.id);
+        if (!active) {
+          return;
+        }
+
+        if (!payload?.track) {
+          setCurrentTrack({
+            name: "Sin reproduccion",
+            artist: "Inicia Spotify en tu dispositivo activo"
+          });
+          return;
+        }
+
+        const artists = Array.isArray(payload.track.artists)
+          ? payload.track.artists.join(", ")
+          : "Spotify";
+        setCurrentTrack({
+          name: payload.track.name || "Sin titulo",
+          artist: artists || "Spotify"
+        });
+      } catch {
+        if (active) {
+          setCurrentTrack({
+            name: "No se pudo leer la cancion",
+            artist: "Reintenta en unos segundos"
+          });
+        }
+      } finally {
+        nowPlayingInFlightRef.current = false;
+      }
+    }
+
+    fetchNowPlaying();
+    intervalId = setInterval(fetchNowPlaying, 5000);
+
+    return () => {
+      active = false;
+      clearInterval(intervalId);
+    };
+  }, [user?.id, trainingSession.engineSessionId]);
 
   const controlsDisabled =
     isCreatingSession || isFinishingSession || wsStatus !== "connected";

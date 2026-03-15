@@ -6,6 +6,7 @@ import {
 } from "../api/authApi";
 import { mockUser, USE_MOCK_DATA } from "../api/mockData";
 import { clearAuthSession, persistAuthSession, readAuthSession } from "../utils/authStorage";
+import { clearMusicPreferences } from "../utils/musicPreferences";
 
 const AuthContext = createContext(null);
 
@@ -84,6 +85,7 @@ export function AuthProvider({ children }) {
       logout() {
         setSession(null);
         clearAuthSession();
+        clearMusicPreferences();
       }
     }),
     [session]

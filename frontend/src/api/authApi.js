@@ -91,3 +91,13 @@ export function verifySpotifyConnection(userId) {
     method: "GET"
   });
 }
+
+export function getSpotifyNowPlaying(userId) {
+  if (!userId) {
+    throw new Error("No se puede consultar la cancion actual sin user_id.");
+  }
+
+  return request(`/auth/now-playing/${encodeURIComponent(userId)}`, {
+    method: "GET"
+  });
+}

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from src.auth.application.services import (
     get_internal_token,
     get_spotify_auth_url,
+    get_spotify_now_playing,
     get_spotify_profile,
     process_spotify_callback,
 )
@@ -56,6 +57,8 @@ def verify_spotify_connection(user_id: str, db: Session = Depends(get_db)):
         profile = get_spotify_profile(db=db, user_id=user_id)
     except ValueError as exc:
         error_msg = str(exc)
+        if "429" in error_msg:
+            raise HTTPException(status_code=429, detail=error_msg) from exc
         if "No se encontraron tokens" in error_msg:
             raise HTTPException(status_code=404, detail=error_msg) from exc
         raise HTTPException(status_code=502, detail=error_msg) from exc
@@ -64,6 +67,19 @@ def verify_spotify_connection(user_id: str, db: Session = Depends(get_db)):
         "message": "Conexion con Spotify verificada exitosamente",
         "spotify_profile": profile,
     }
+
+
+@auth_router.get("/now-playing/{user_id}")
+def spotify_now_playing(user_id: str, db: Session = Depends(get_db)):
+    try:
+        return get_spotify_now_playing(db=db, user_id=user_id)
+    except ValueError as exc:
+        error_msg = str(exc)
+        if "429" in error_msg:
+            raise HTTPException(status_code=429, detail=error_msg) from exc
+        if "No se encontraron tokens" in error_msg:
+            raise HTTPException(status_code=404, detail=error_msg) from exc
+        raise HTTPException(status_code=502, detail=error_msg) from exc
 
 
 @auth_router.get(

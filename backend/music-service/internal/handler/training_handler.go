@@ -76,8 +76,31 @@ func (h *TrainingHandler) CreateSession(c *gin.Context) {
 	})
 	if err != nil {
 		log.Printf("[CreateSession] error: %v", err)
-		c.JSON(http.StatusInternalServerError, errorResponse("failed to create session", nil))
-		return
+		errMsg := err.Error()
+		switch {
+		case strings.Contains(errMsg, "spotify queue returned 404"):
+			c.JSON(
+				http.StatusConflict,
+				errorResponse(
+					"no active Spotify device",
+					[]string{"Abre Spotify y reproduce una canción antes de iniciar el entrenamiento."},
+				),
+			)
+			return
+		case strings.Contains(errMsg, "spotify search returned 429"),
+			strings.Contains(errMsg, "spotify queue returned 429"):
+			c.JSON(
+				http.StatusTooManyRequests,
+				errorResponse(
+					"spotify rate limit",
+					[]string{"Espera unos segundos y vuelve a intentar."},
+				),
+			)
+			return
+		default:
+			c.JSON(http.StatusInternalServerError, errorResponse("failed to create session", []string{errMsg}))
+			return
+		}
 	}
 
 	c.JSON(http.StatusCreated, gin.H{

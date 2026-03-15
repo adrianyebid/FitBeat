@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 
 const TrainingContext = createContext();
 
@@ -10,36 +10,36 @@ export function TrainingProvider({ children }) {
     engineSessionId: null
   });
 
-  const setTrainingMode = (mode) => {
+  const setTrainingMode = useCallback((mode) => {
     setTrainingSession((prev) => ({
       ...prev,
       mode
     }));
-  };
+  }, []);
 
-  const startTrainingSession = (trainingType) => {
+  const startTrainingSession = useCallback((trainingType) => {
     setTrainingSession((prev) => ({
       ...prev,
       trainingType,
       startTime: new Date()
     }));
-  };
+  }, []);
 
-  const setEngineSessionId = (engineSessionId) => {
+  const setEngineSessionId = useCallback((engineSessionId) => {
     setTrainingSession((prev) => ({
       ...prev,
       engineSessionId
     }));
-  };
+  }, []);
 
-  const clearTrainingSession = () => {
+  const clearTrainingSession = useCallback(() => {
     setTrainingSession({
       mode: null,
       trainingType: null,
       startTime: null,
       engineSessionId: null
     });
-  };
+  }, []);
 
   return (
     <TrainingContext.Provider

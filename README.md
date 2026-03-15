@@ -19,6 +19,7 @@ Implementado:
 - Flujo visible de Spotify desde dashboard:
   - Boton `Conectar Spotify`
   - Verificacion de estado por `GET /auth/verify-connection/{user_id}`
+  - Now Playing por `GET /auth/now-playing/{user_id}`
   - Retorno de callback a dashboard con estado de conexion
 - Encuesta musical guardada en `musicPreferences` y mapeada a:
   - `genres[]`
@@ -49,6 +50,7 @@ Implementado:
   - `GET /auth/login/{user_id}`
   - `GET /auth/callback`
   - `GET /auth/verify-connection/{user_id}`
+  - `GET /auth/now-playing/{user_id}`
 - Token provider interno:
   - `GET /auth/internal/token/{user_id}`
   - protegido con JWT del usuario (sub debe coincidir con `user_id`) o `X-Internal-Token`
@@ -106,6 +108,8 @@ Variables clave:
 - `SPOTIFY_CLIENT_ID`
 - `SPOTIFY_CLIENT_SECRET`
 - `REDIRECT_URI`
+  - Para local, usar **loopback IP** (no `localhost`):
+    - `http://127.0.0.1:8000/auth/callback`
 
 ### Frontend (`frontend/.env`)
 
@@ -119,7 +123,17 @@ VITE_WS_API_URL=ws://localhost:8081
 
 ## Ejecucion local rapida
 
-### 1) Componente A (FastAPI + Postgres)
+### Requisitos previos
+
+- Docker Desktop (para Postgres + CouchDB).
+- Go instalado (para Componente B).
+- Node.js + npm (para frontend).
+- Cuenta Spotify Developer con app creada:
+  - Redirect URI configurado en la app: `http://127.0.0.1:8000/auth/callback`
+  - `Client ID` y `Client Secret` cargados en `.env`.
+  - Para reproducir musica: usuario **Premium** y un dispositivo activo (PC o celular).
+
+### 1) Componente A + Postgres + CouchDB
 
 En la raiz del repo:
 
@@ -148,6 +162,14 @@ npm run dev
 
 App en `http://localhost:5173`.
 
+### (Opcional) Silenciar logs de CouchDB
+
+Crear DB interna `_users` (solo una vez por volumen):
+
+```bash
+curl -X PUT http://admin:secret@127.0.0.1:5984/_users
+```
+
 ## Guia de prueba end-to-end (frontend)
 
 ### 1) Preparar entorno
@@ -156,12 +178,13 @@ App en `http://localhost:5173`.
 2. Verificar al menos:
    - `FRONTEND_APP_URL=http://localhost:5173`
    - `JWT_SECRET_KEY` (no usar default en ambientes compartidos)
-   - `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `REDIRECT_URI` (si se probara Spotify)
+   - `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `REDIRECT_URI`
+     - Para local: `REDIRECT_URI=http://127.0.0.1:8000/auth/callback`
 3. En frontend, crear `frontend/.env` usando [`frontend/.env.example`](c:/FitBeat/frontend/.env.example).
 
 ### 2) Levantar servicios
 
-1. Componente A + Postgres:
+1. Componente A + Postgres + CouchDB:
 ```bash
 docker-compose up --build
 ```
@@ -184,6 +207,7 @@ npm run dev
 3. Completar encuesta en `/music-survey` (si aplica).
 4. En `/dashboard`, pulsar `Conectar Spotify` y completar OAuth.
 5. Verificar retorno a dashboard con estado de Spotify conectado.
+6. Abrir Spotify (PC o celular) y **reproducir una cancion** para activar un dispositivo.
 6. Pulsar `Comenzar entrenamiento` y recorrer:
    - `/training`
    - `/training/select-type`
@@ -209,6 +233,7 @@ npm run dev
 - Requests hacia Componente A incluyen `Authorization: Bearer <accessToken>`.
 - Al pedir token interno Spotify, debe pasar autenticacion del usuario.
 - Si Spotify devuelve expiracion durante reproduccion, frontend intenta refresh y reintento.
+- Now Playing se consulta via `/auth/now-playing/{user_id}` y muestra el track actual en UI.
 
 ### 6) Reset rapido de pruebas
 

@@ -19,7 +19,12 @@ services:
     ports:
       - "5433:5432" 
     volumes:
-      - [cite_start]postgres_data:/var/lib/postgresql/data 
+      - postgres_data:/var/lib/postgresql/data 
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h 127.0.0.1 -p 5432"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     networks:
       - component_a_network
     restart: always
@@ -48,7 +53,23 @@ services:
       # Llave para mitigar CWE-312 (Cifrado de tokens en reposo) 
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
     depends_on:
-      - postgres_db
+      postgres_db:
+        condition: service_healthy
+    networks:
+      - component_a_network
+    restart: always
+
+  # ───────────── CouchDB (Componente B) ─────────────
+  couchdb:
+    image: couchdb:3
+    container_name: component_b_couchdb
+    environment:
+      COUCHDB_USER: ${COUCHDB_USER:-admin}
+      COUCHDB_PASSWORD: ${COUCHDB_PASSWORD:-secret}
+    ports:
+      - "5984:5984"
+    volumes:
+      - couchdb_data:/opt/couchdb/data
     networks:
       - component_a_network
     restart: always
@@ -61,3 +82,4 @@ networks:
 # ─────────────── Volumen Persistente ─────────────
 volumes:
   postgres_data:
+  couchdb_data:
