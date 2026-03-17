@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTraining } from "../context/TrainingContext";
@@ -54,6 +54,49 @@ const USER_SPOTIFY_TOKEN_KEYS = [
   "access_token",
   "accessToken"
 ];
+
+const SPOTIFY_SDK_URL = "https://sdk.scdn.co/spotify-player.js";
+let spotifySdkPromise = null;
+
+function loadSpotifyWebPlaybackSdk() {
+  if (window.Spotify) {
+    return Promise.resolve(window.Spotify);
+  }
+
+  if (spotifySdkPromise) {
+    return spotifySdkPromise;
+  }
+
+  spotifySdkPromise = new Promise((resolve, reject) => {
+    const existingScript = document.querySelector(`script[src="${SPOTIFY_SDK_URL}"]`);
+    if (existingScript && window.Spotify) {
+      resolve(window.Spotify);
+      return;
+    }
+
+    const previousReady = window.onSpotifyWebPlaybackSDKReady;
+    window.onSpotifyWebPlaybackSDKReady = () => {
+      if (typeof previousReady === "function") {
+        previousReady();
+      }
+      if (window.Spotify) {
+        resolve(window.Spotify);
+      } else {
+        reject(new Error("Spotify SDK no disponible."));
+      }
+    };
+
+    if (!existingScript) {
+      const script = document.createElement("script");
+      script.src = SPOTIFY_SDK_URL;
+      script.async = true;
+      script.onerror = () => reject(new Error("No se pudo cargar el Spotify SDK."));
+      document.body.appendChild(script);
+    }
+  });
+
+  return spotifySdkPromise;
+}
 
 function normalizeMode(mode) {
   const value = String(mode || "").trim().toLowerCase();
@@ -134,6 +177,14 @@ function TrainingPlayPage() {
   const retryActionRef = useRef(null);
   const refreshInProgressRef = useRef(false);
   const spotifyTokenRef = useRef("");
+  const playerRef = useRef(null);
+  const deviceIdRef = useRef("");
+  const transferInFlightRef = useRef(false);
+  const webPlayerReadyRef = useRef(false);
+  const webPlayerWaitersRef = useRef([]);
+  const playbackPositionMsRef = useRef(0);
+  const playbackUpdatedAtRef = useRef(0);
+  const playbackTrackIdRef = useRef("");
 
   const normalizedTrainingType = normalizeActivityType(trainingType);
   const trainingName = TRAINING_NAMES[normalizedTrainingType] || "Entrenamiento";
@@ -144,6 +195,25 @@ function TrainingPlayPage() {
     artist: "Controlado por WebSocket"
   });
   const nowPlayingInFlightRef = useRef(false);
+
+  const waitForWebPlayerReady = useCallback((timeoutMs = 8000) => {
+    if (webPlayerReadyRef.current && deviceIdRef.current) {
+      return Promise.resolve(true);
+    }
+
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        resolve(false);
+      }, timeoutMs);
+
+      const resolver = () => {
+        clearTimeout(timer);
+        resolve(true);
+      };
+
+      webPlayerWaitersRef.current.push(resolver);
+    });
+  }, []);
 
   useEffect(() => {
     startTrainingSession(normalizedTrainingType);
@@ -179,13 +249,31 @@ function TrainingPlayPage() {
           throw new Error("No se encontro un token de Spotify valido para iniciar la sesion.");
         }
 
+        if (active) {
+          spotifyTokenRef.current = token;
+          setSpotifyToken(token);
+        }
+
+        const webPlayerReady = await waitForWebPlayerReady();
+        if (!webPlayerReady) {
+          throw new Error(
+            "No se pudo activar el reproductor web. Asegura permisos y reintenta."
+          );
+        }
+
+        const deviceId = deviceIdRef.current;
+        if (!deviceId) {
+          throw new Error("No se encontro el device_id del reproductor web.");
+        }
+
         const response = await createEngineSession({
           user_id: user.id,
           activity_type: normalizedTrainingType,
           mode: normalizeMode(trainingSession.mode),
           genres: musicPayload.genres,
           categories: musicPayload.categories,
-          spotify_token: token
+          spotify_token: token,
+          device_id: deviceId
         });
 
         const sessionId = response?.data?.session_id || response?.data?.id;
@@ -194,8 +282,6 @@ function TrainingPlayPage() {
         }
 
         if (active) {
-          spotifyTokenRef.current = token;
-          setSpotifyToken(token);
           setEngineSessionId(sessionId);
         }
       } catch (error) {
@@ -221,20 +307,268 @@ function TrainingPlayPage() {
     trainingSession.engineSessionId,
     trainingSession.mode,
     setEngineSessionId,
-    user
+    user,
+    waitForWebPlayerReady
   ]);
 
-  useEffect(() => {
-    let timerId;
+  const syncElapsedTime = useCallback(
+    (positionMs, trackId, isPaused) => {
+      const seconds = Math.max(0, Math.floor(positionMs / 1000));
+      const trackChanged = trackId && trackId !== playbackTrackIdRef.current;
+      if (trackChanged) {
+        playbackTrackIdRef.current = trackId;
+      }
 
-    if (isPlaying) {
-      timerId = setInterval(() => {
-        setElapsedTime((prev) => prev + 1);
-      }, 1000);
-    }
+      setElapsedTime((prev) => {
+        if (trackChanged) {
+          return seconds;
+        }
+        if (seconds >= prev) {
+          return seconds;
+        }
+        if (!isPaused && prev - seconds <= 2) {
+          return prev;
+        }
+        return seconds;
+      });
+    },
+    []
+  );
+
+  useEffect(() => {
+    const timerId = setInterval(() => {
+      const base = playbackPositionMsRef.current || 0;
+      const updatedAt = playbackUpdatedAtRef.current || 0;
+      if (!updatedAt) {
+        return;
+      }
+      const delta = isPlaying ? Math.max(0, Date.now() - updatedAt) : 0;
+      const positionMs = base + delta;
+      setElapsedTime((prev) => {
+        const seconds = Math.max(0, Math.floor(positionMs / 1000));
+        if (!isPlaying) {
+          return seconds;
+        }
+        return seconds < prev ? prev : seconds;
+      });
+    }, 500);
 
     return () => clearInterval(timerId);
   }, [isPlaying]);
+
+  const fetchNowPlaying = useCallback(async () => {
+    if (!user?.id) {
+      return;
+    }
+    if (nowPlayingInFlightRef.current) {
+      return;
+    }
+    nowPlayingInFlightRef.current = true;
+
+    try {
+      const payload = await getSpotifyNowPlaying(user.id);
+      if (!payload?.track) {
+        setCurrentTrack({
+          name: "Sin reproduccion",
+          artist: "Inicia Spotify en tu dispositivo activo"
+        });
+        return;
+      }
+
+      const artists = Array.isArray(payload.track.artists)
+        ? payload.track.artists.join(", ")
+        : "Spotify";
+      setCurrentTrack({
+        name: payload.track.name || "Sin titulo",
+        artist: artists || "Spotify"
+      });
+    } catch {
+      setCurrentTrack({
+        name: "No se pudo leer la cancion",
+        artist: "Reintenta en unos segundos"
+      });
+    } finally {
+      nowPlayingInFlightRef.current = false;
+    }
+  }, [user?.id]);
+
+  const getFreshSpotifyToken = useCallback(async () => {
+    if (!user?.id) {
+      return spotifyTokenRef.current || spotifyToken;
+    }
+
+    try {
+      const refreshed = await getSpotifyInternalToken(user.id);
+      const freshToken = refreshed?.accessToken || "";
+      if (freshToken) {
+        spotifyTokenRef.current = freshToken;
+        return freshToken;
+      }
+    } catch {
+      // fallback to current token
+    }
+
+    return spotifyTokenRef.current || spotifyToken;
+  }, [spotifyToken, user?.id]);
+
+  const transferPlaybackToWebPlayer = useCallback(
+    async (deviceId) => {
+      if (!deviceId || transferInFlightRef.current) {
+        return;
+      }
+
+      transferInFlightRef.current = true;
+      try {
+        const token = await getFreshSpotifyToken();
+        if (!token) {
+          return;
+        }
+
+        await fetch("https://api.spotify.com/v1/me/player", {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ device_ids: [deviceId], play: false })
+        }).then((response) => {
+          if (!response.ok) {
+            throw new Error(`Spotify transfer returned ${response.status}`);
+          }
+        });
+      } catch (error) {
+        setSessionError(
+          parseErrorMessage(error, "No se pudo activar el reproductor web.")
+        );
+      } finally {
+        transferInFlightRef.current = false;
+      }
+    },
+    [getFreshSpotifyToken]
+  );
+
+  useEffect(() => {
+    if (!user?.id || !spotifyToken) {
+      return;
+    }
+    if (playerRef.current) {
+      return;
+    }
+
+    let active = true;
+
+    async function initWebPlayer() {
+      try {
+        await loadSpotifyWebPlaybackSdk();
+        if (!active) {
+          return;
+        }
+
+        const initialToken = await getFreshSpotifyToken();
+        if (!initialToken) {
+          setSessionError("No se encontro un token de Spotify valido para el reproductor web.");
+          return;
+        }
+
+        const player = new window.Spotify.Player({
+          name: "FitBeat Web Player",
+          getOAuthToken: async (cb) => {
+            const freshToken = await getFreshSpotifyToken();
+            cb(freshToken || initialToken);
+          },
+          volume: 0.6
+        });
+
+        player.addListener("ready", ({ device_id }) => {
+          if (!active) {
+            return;
+          }
+          deviceIdRef.current = device_id;
+          webPlayerReadyRef.current = true;
+          if (webPlayerWaitersRef.current.length > 0) {
+            webPlayerWaitersRef.current.forEach((resolver) => resolver());
+            webPlayerWaitersRef.current = [];
+          }
+          transferPlaybackToWebPlayer(device_id);
+        });
+
+        player.addListener("not_ready", ({ device_id }) => {
+          if (!active) {
+            return;
+          }
+          if (deviceIdRef.current === device_id) {
+            deviceIdRef.current = "";
+          }
+        });
+
+        player.addListener("initialization_error", ({ message }) => {
+          if (active) {
+            setSessionError(message || "No se pudo inicializar el reproductor web.");
+          }
+        });
+
+        player.addListener("authentication_error", ({ message }) => {
+          if (active) {
+            setSessionError(message || "Error de autenticacion con Spotify.");
+          }
+        });
+
+        player.addListener("account_error", ({ message }) => {
+          if (active) {
+            setSessionError(message || "Tu cuenta no permite reproducir en web.");
+          }
+        });
+
+        player.addListener("player_state_changed", (state) => {
+          if (!active || !state) {
+            return;
+          }
+
+          setIsPlaying(!state.paused);
+
+          if (typeof state.position === "number") {
+            playbackPositionMsRef.current = state.position;
+            playbackUpdatedAtRef.current = Date.now();
+            const trackId = state.track_window?.current_track?.id || "";
+            syncElapsedTime(state.position, trackId, state.paused);
+          }
+
+          const track = state.track_window?.current_track;
+          if (track) {
+            const artists =
+              track.artists?.map((artist) => artist.name).filter(Boolean).join(", ") ||
+              "Spotify";
+            setCurrentTrack({
+              name: track.name || "Sin titulo",
+              artist: artists
+            });
+          }
+        });
+
+        playerRef.current = player;
+        await player.connect();
+      } catch (error) {
+        if (active) {
+          setSessionError(
+            parseErrorMessage(error, "No se pudo cargar el reproductor web.")
+          );
+        }
+      }
+    }
+
+    initWebPlayer();
+
+    return () => {
+      active = false;
+      if (playerRef.current) {
+        playerRef.current.disconnect();
+        playerRef.current = null;
+      }
+      deviceIdRef.current = "";
+      webPlayerReadyRef.current = false;
+      webPlayerWaitersRef.current = [];
+    };
+  }, [getFreshSpotifyToken, spotifyToken, syncElapsedTime, transferPlaybackToWebPlayer, user?.id]);
 
   useEffect(() => {
     if (!trainingSession.engineSessionId || !spotifyToken) {
@@ -316,6 +650,9 @@ function TrainingPlayPage() {
             }
             if (action) {
               setLastPlayerAction(ACTION_LABELS[action] || action);
+              if (action === "next" || action === "previous") {
+                fetchNowPlaying();
+              }
             }
             setSessionError("");
 
@@ -360,7 +697,7 @@ function TrainingPlayPage() {
       active = false;
       disconnectPlayerSocket();
     };
-  }, [spotifyToken, trainingSession.engineSessionId, user?.id]);
+  }, [fetchNowPlaying, spotifyToken, trainingSession.engineSessionId, user?.id]);
 
   useEffect(() => {
     if (!user?.id || !trainingSession.engineSessionId) {
@@ -370,61 +707,42 @@ function TrainingPlayPage() {
     let active = true;
     let intervalId;
 
-    async function fetchNowPlaying() {
-      if (nowPlayingInFlightRef.current) {
+    const safeFetch = async () => {
+      if (!active) {
         return;
       }
-      nowPlayingInFlightRef.current = true;
+      await fetchNowPlaying();
+    };
 
-      try {
-        const payload = await getSpotifyNowPlaying(user.id);
-        if (!active) {
-          return;
-        }
-
-        if (!payload?.track) {
-          setCurrentTrack({
-            name: "Sin reproduccion",
-            artist: "Inicia Spotify en tu dispositivo activo"
-          });
-          return;
-        }
-
-        const artists = Array.isArray(payload.track.artists)
-          ? payload.track.artists.join(", ")
-          : "Spotify";
-        setCurrentTrack({
-          name: payload.track.name || "Sin titulo",
-          artist: artists || "Spotify"
-        });
-      } catch {
-        if (active) {
-          setCurrentTrack({
-            name: "No se pudo leer la cancion",
-            artist: "Reintenta en unos segundos"
-          });
-        }
-      } finally {
-        nowPlayingInFlightRef.current = false;
-      }
-    }
-
-    fetchNowPlaying();
-    intervalId = setInterval(fetchNowPlaying, 5000);
+    safeFetch();
+    intervalId = setInterval(safeFetch, 5000);
 
     return () => {
       active = false;
       clearInterval(intervalId);
     };
-  }, [user?.id, trainingSession.engineSessionId]);
+  }, [fetchNowPlaying, trainingSession.engineSessionId, user?.id]);
 
   const controlsDisabled =
     isCreatingSession || isFinishingSession || wsStatus !== "connected";
+
+  const applyOptimisticAction = (action) => {
+    if (action === "play") {
+      setIsPlaying(true);
+    }
+    if (action === "pause") {
+      setIsPlaying(false);
+    }
+    if (action) {
+      setLastPlayerAction(ACTION_LABELS[action] || action);
+    }
+  };
 
   const handlePlayerAction = (action) => {
     setSessionError("");
 
     try {
+      applyOptimisticAction(action);
       sendPlayerAction(action);
     } catch (error) {
       setSessionError(

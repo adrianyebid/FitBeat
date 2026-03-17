@@ -23,6 +23,7 @@ type createSessionRequest struct {
 	Genres     []string `json:"genres"`     // géneros musicales preferidos del usuario
 	Categories []string `json:"categories"` // categorías preferidas del usuario
 	SpotifyToken string   `json:"spotify_token"` // access token de Spotify del usuario
+	DeviceID     string   `json:"device_id"`     // device id para Web Playback
 }
 
 func NewTrainingHandler(engineService *service.EngineService) *TrainingHandler {
@@ -73,6 +74,7 @@ func (h *TrainingHandler) CreateSession(c *gin.Context) {
 		Genres:       req.Genres,
 		Categories:   req.Categories,
 		SpotifyToken: req.SpotifyToken,
+		DeviceID:     req.DeviceID,
 	})
 	if err != nil {
 		log.Printf("[CreateSession] error: %v", err)

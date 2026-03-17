@@ -15,7 +15,13 @@ SPOTIFY_AUTH_URL = "https://accounts.spotify.com/authorize"
 SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
 SPOTIFY_ME_URL = "https://api.spotify.com/v1/me"
 SPOTIFY_NOW_PLAYING_URL = "https://api.spotify.com/v1/me/player/currently-playing"
-SCOPES = "user-read-playback-state user-modify-playback-state"
+SCOPES = (
+    "streaming "
+    "user-read-email "
+    "user-read-private "
+    "user-read-playback-state "
+    "user-modify-playback-state"
+)
 
 
 def get_spotify_auth_url(user_id: str) -> str:

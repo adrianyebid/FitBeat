@@ -26,7 +26,7 @@ Implementado:
   - `categories[]`
 - Inicio de entrenamiento con contrato actual de Componente B:
   - `POST /api/v1/sessions`
-  - payload: `user_id`, `activity_type`, `mode`, `genres`, `categories`, `spotify_token`
+  - payload: `user_id`, `activity_type`, `mode`, `genres`, `categories`, `spotify_token`, `device_id`
 - Control de reproductor por WebSocket:
   - `play`, `pause`, `next`, `previous`
   - Manejo de `token_expired -> refresh token -> update_token -> retry accion`
@@ -51,6 +51,7 @@ Implementado:
   - `GET /auth/callback`
   - `GET /auth/verify-connection/{user_id}`
   - `GET /auth/now-playing/{user_id}`
+  - Scopes incluyen `streaming` para Web Playback SDK (requiere reconectar Spotify)
 - Token provider interno:
   - `GET /auth/internal/token/{user_id}`
   - protegido con JWT del usuario (sub debe coincidir con `user_id`) o `X-Internal-Token`
@@ -131,7 +132,8 @@ VITE_WS_API_URL=ws://localhost:8081
 - Cuenta Spotify Developer con app creada:
   - Redirect URI configurado en la app: `http://127.0.0.1:8000/auth/callback`
   - `Client ID` y `Client Secret` cargados en `.env`.
-  - Para reproducir musica: usuario **Premium** y un dispositivo activo (PC o celular).
+  - Para reproducir musica: usuario **Premium** y un dispositivo activo (PC, celular o Web Playback).
+  - Si cambian scopes (ej. agregar `streaming`), hay que volver a conectar Spotify.
 
 ### 1) Componente A + Postgres + CouchDB
 

@@ -27,6 +27,7 @@ type CreateSessionInput struct {
 	Genres       []string // géneros musicales preferidos del usuario
 	Categories   []string // categorías preferidas del usuario
 	SpotifyToken string   // access token de Spotify para buscar tracks
+	DeviceID     string   // device id de Spotify para encolar en Web Playback
 }
 
 // CreateSessionOutput contiene solo la sesión creada.
@@ -153,7 +154,7 @@ func (s *EngineService) CreateSession(input CreateSessionInput) (CreateSessionOu
 			// incluso si enqueueSpotifyTrack hace panic o retorna error.
 			defer wg.Done()
 
-			if err := s.enqueueSpotifyTrack(input.SpotifyToken, u); err != nil {
+			if err := s.enqueueSpotifyTrack(input.SpotifyToken, input.DeviceID, u); err != nil {
 				// Escribir el error en el canal y continuar.
 				// No podemos retornar el error directamente desde una goroutine.
 				errCh <- err
@@ -178,9 +179,12 @@ func (s *EngineService) CreateSession(input CreateSessionInput) (CreateSessionOu
 }
 
 // enqueueSpotifyTrack agrega un track a la cola del dispositivo activo del usuario en Spotify.
-func (s *EngineService) enqueueSpotifyTrack(token, uri string) error {
+func (s *EngineService) enqueueSpotifyTrack(token, deviceID, uri string) error {
 	params := url.Values{}
 	params.Set("uri", uri)
+	if strings.TrimSpace(deviceID) != "" {
+		params.Set("device_id", strings.TrimSpace(deviceID))
+	}
 
 	req, err := http.NewRequest(http.MethodPost, spotifyQueueURL+"?"+params.Encode(), nil)
 	if err != nil {
