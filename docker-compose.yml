@@ -31,12 +31,12 @@ services:
 
   # ─────────────── API FastAPI (Componente A) ─────────────
   component_a:
-    build: .
+    build: ./backend/user-service
     container_name: component_a_api
  
     command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
-      - .:/app
+      - ./backend/user-service:/app
     ports:
       - "8000:8000"
     env_file:
