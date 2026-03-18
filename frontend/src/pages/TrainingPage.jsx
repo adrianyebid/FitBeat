@@ -27,17 +27,17 @@ function TrainingPage() {
           className="ghost-btn back-btn"
           onClick={handleBackToDashboard}
         >
-          Atras
+          ← Atrás
         </button>
         <button type="button" className="ghost-btn" onClick={logout}>
-          Cerrar sesion
+          Cerrar sesión
         </button>
       </header>
 
       <section className="training-content">
         <div className="training-intro">
           <h1>Comienza tu entrenamiento</h1>
-          <p>Selecciona como deseas registrar tu actividad</p>
+          <p>Selecciona cómo deseas registrar tu actividad</p>
         </div>
 
         <div className="training-cards">
@@ -45,9 +45,9 @@ function TrainingPage() {
             className={`training-card ${selectedMode === "smartwatch" ? "selected" : ""}`}
             onClick={() => handleSelectMode("smartwatch")}
           >
-            <div className="card-icon">SW</div>
+            <div className="card-icon">⌚</div>
             <h2>Smartwatch</h2>
-            <p>Sincroniza con tu dispositivo inteligente para tracking automatico</p>
+            <p>Sincroniza con tu dispositivo inteligente para tracking automático</p>
             <button type="button" className="card-btn">
               Usar Smartwatch
             </button>
@@ -57,7 +57,7 @@ function TrainingPage() {
             className={`training-card ${selectedMode === "manual" ? "selected" : ""}`}
             onClick={() => handleSelectMode("manual")}
           >
-            <div className="card-icon">M</div>
+            <div className="card-icon">✋</div>
             <h2>Manual</h2>
             <p>Registra manualmente tu entrenamiento ingresando los datos</p>
             <button type="button" className="card-btn">

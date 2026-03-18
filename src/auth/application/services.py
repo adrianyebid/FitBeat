@@ -14,7 +14,14 @@ from src.users.infrastructure.models import User
 SPOTIFY_AUTH_URL = "https://accounts.spotify.com/authorize"
 SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
 SPOTIFY_ME_URL = "https://api.spotify.com/v1/me"
-SCOPES = "user-read-playback-state user-modify-playback-state"
+SPOTIFY_NOW_PLAYING_URL = "https://api.spotify.com/v1/me/player/currently-playing"
+SCOPES = (
+    "streaming "
+    "user-read-email "
+    "user-read-private "
+    "user-read-playback-state "
+    "user-modify-playback-state"
+)
 
 
 def get_spotify_auth_url(user_id: str) -> str:
@@ -111,6 +118,11 @@ def get_spotify_profile(db: Session, user_id: str) -> dict:
     headers = {"Authorization": f"Bearer {token_record.access_token}"}
     response = requests.get(SPOTIFY_ME_URL, headers=headers, timeout=10)
 
+    if response.status_code == 401:
+        refresh_spotify_token(db=db, db_token=token_record)
+        headers = {"Authorization": f"Bearer {token_record.access_token}"}
+        response = requests.get(SPOTIFY_ME_URL, headers=headers, timeout=10)
+
     if response.status_code != 200:
         raise ValueError(
             f"Error al consultar el perfil de Spotify: "
@@ -196,6 +208,70 @@ def get_valid_token(db: Session, user_id: str) -> str:
         refresh_spotify_token(db=db, db_token=db_token)
 
     return db_token.access_token
+
+
+def get_spotify_now_playing(db: Session, user_id: str) -> dict:
+    """
+    Devuelve la cancion actual en reproduccion (si existe) para el usuario.
+
+    Retorna:
+        {
+            "is_playing": bool,
+            "track": {
+                "name": str | None,
+                "artists": [str],
+                "album": str | None,
+                "duration_ms": int | None,
+                "progress_ms": int | None,
+                "external_url": str | None
+            }
+        }
+    """
+    token_record = (
+        db.query(SpotifyToken)
+        .filter(SpotifyToken.user_id == user_id)
+        .first()
+    )
+
+    if not token_record:
+        raise ValueError(f"No se encontraron tokens de Spotify para el usuario {user_id}")
+
+    headers = {"Authorization": f"Bearer {token_record.access_token}"}
+    response = requests.get(SPOTIFY_NOW_PLAYING_URL, headers=headers, timeout=10)
+
+    if response.status_code == 401:
+        refresh_spotify_token(db=db, db_token=token_record)
+        headers = {"Authorization": f"Bearer {token_record.access_token}"}
+        response = requests.get(SPOTIFY_NOW_PLAYING_URL, headers=headers, timeout=10)
+
+    if response.status_code == 204:
+        return {"is_playing": False, "track": None}
+
+    if response.status_code != 200:
+        raise ValueError(
+            f"Error al consultar la cancion actual: "
+            f"{response.status_code} — {response.text}"
+        )
+
+    payload = response.json()
+    item = payload.get("item") or {}
+    artists = [
+        artist.get("name")
+        for artist in (item.get("artists") or [])
+        if artist.get("name")
+    ]
+
+    return {
+        "is_playing": bool(payload.get("is_playing")),
+        "track": {
+            "name": item.get("name"),
+            "artists": artists,
+            "album": (item.get("album") or {}).get("name"),
+            "duration_ms": item.get("duration_ms"),
+            "progress_ms": payload.get("progress_ms"),
+            "external_url": (item.get("external_urls") or {}).get("spotify"),
+        },
+    }
 
 
 def get_internal_token(db: Session, user_id: str) -> dict:

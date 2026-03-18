@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"errors"
+	"log"
 	"net/http"
 	"strings"
 
@@ -9,25 +9,31 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// TrainingHandler gestiona los endpoints del ciclo de vida del entrenamiento:
+// crear sesión y procesar lecturas biométricas.
 type TrainingHandler struct {
 	engineService *service.EngineService
 }
 
+// createSessionRequest define los campos requeridos para iniciar una sesión de entrenamiento.
 type createSessionRequest struct {
-	UserID       string `json:"user_id"`
-	ActivityType string `json:"activity_type"`
-	Mode         string `json:"mode"`
-}
-
-type processBiometricRequest struct {
-	SessionID string `json:"session_id"`
-	HeartRate int    `json:"heart_rate"`
+	UserID       string   `json:"user_id"`
+	ActivityType string   `json:"activity_type"` // ej: "running", "cycling"
+	Mode         string   `json:"mode"`          // ej: "automatic", "manual"
+	Genres     []string `json:"genres"`     // géneros musicales preferidos del usuario
+	Categories []string `json:"categories"` // categorías preferidas del usuario
+	SpotifyToken string   `json:"spotify_token"` // access token de Spotify del usuario
+	DeviceID     string   `json:"device_id"`     // device id para Web Playback
 }
 
 func NewTrainingHandler(engineService *service.EngineService) *TrainingHandler {
 	return &TrainingHandler{engineService: engineService}
 }
 
+// CreateSession inicia una nueva sesión de entrenamiento para el usuario.
+// Valida todos los campos requeridos antes de delegar al service.
+// Devuelve 201 con la sesión creada, incluyendo su ID para usarlo en el flujo actual
+// (por ejemplo, mediante el WS /api/v1/ws o el nuevo contrato de sesión).
 func (h *TrainingHandler) CreateSession(c *gin.Context) {
 	var req createSessionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -35,6 +41,7 @@ func (h *TrainingHandler) CreateSession(c *gin.Context) {
 		return
 	}
 
+	// Acumular todos los errores de validación en un solo response en lugar de fallar en el primero
 	details := make([]string, 0)
 	if strings.TrimSpace(req.UserID) == "" {
 		details = append(details, "user_id is required")
@@ -45,61 +52,68 @@ func (h *TrainingHandler) CreateSession(c *gin.Context) {
 	if strings.TrimSpace(req.Mode) == "" {
 		details = append(details, "mode is required")
 	}
+	if len(req.Genres) == 0 {
+		details = append(details, "genres is required and must not be empty")
+	}
+	if len(req.Categories) == 0 {
+		details = append(details, "categories is required and must not be empty")
+	}
+	if strings.TrimSpace(req.SpotifyToken) == "" {
+		details = append(details, "spotify_token is required")
+	}
 
 	if len(details) > 0 {
 		c.JSON(http.StatusBadRequest, errorResponse("validation failed", details))
 		return
 	}
 
-	session, err := h.engineService.CreateSession(service.CreateSessionInput{
+	output, err := h.engineService.CreateSession(service.CreateSessionInput{
 		UserID:       req.UserID,
 		ActivityType: req.ActivityType,
 		Mode:         req.Mode,
+		Genres:       req.Genres,
+		Categories:   req.Categories,
+		SpotifyToken: req.SpotifyToken,
+		DeviceID:     req.DeviceID,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, errorResponse("failed to create session", nil))
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{"data": session})
-}
-
-func (h *TrainingHandler) ProcessBiometric(c *gin.Context) {
-	var req processBiometricRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, errorResponse("invalid JSON payload", nil))
-		return
-	}
-
-	details := make([]string, 0)
-	if strings.TrimSpace(req.SessionID) == "" {
-		details = append(details, "session_id is required")
-	}
-	if req.HeartRate <= 0 {
-		details = append(details, "heart_rate must be greater than 0")
-	}
-
-	if len(details) > 0 {
-		c.JSON(http.StatusBadRequest, errorResponse("validation failed", details))
-		return
-	}
-
-	decision, err := h.engineService.ProcessBiometric(service.ProcessBiometricInput{
-		SessionID: req.SessionID,
-		HeartRate: req.HeartRate,
-	})
-	if err != nil {
-		if errors.Is(err, service.ErrSessionNotFound) {
-			c.JSON(http.StatusNotFound, errorResponse("session not found", []string{"session_id does not exist"}))
+		log.Printf("[CreateSession] error: %v", err)
+		errMsg := err.Error()
+		switch {
+		case strings.Contains(errMsg, "spotify queue returned 404"):
+			c.JSON(
+				http.StatusConflict,
+				errorResponse(
+					"no active Spotify device",
+					[]string{"Abre Spotify y reproduce una canción antes de iniciar el entrenamiento."},
+				),
+			)
+			return
+		case strings.Contains(errMsg, "spotify search returned 429"),
+			strings.Contains(errMsg, "spotify queue returned 429"):
+			c.JSON(
+				http.StatusTooManyRequests,
+				errorResponse(
+					"spotify rate limit",
+					[]string{"Espera unos segundos y vuelve a intentar."},
+				),
+			)
+			return
+		default:
+			c.JSON(http.StatusInternalServerError, errorResponse("failed to create session", []string{errMsg}))
 			return
 		}
-		c.JSON(http.StatusInternalServerError, errorResponse("failed to process biometric data", nil))
-		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": decision})
+	c.JSON(http.StatusCreated, gin.H{
+		"data": gin.H{
+			"session_id": output.Session.ID,
+			"message":    "session created and tracks queued",
+		},
+	})
 }
 
+// errorResponse construye el formato de error estándar de la API.
 func errorResponse(message string, details []string) gin.H {
 	return gin.H{
 		"message": message,
@@ -107,6 +121,8 @@ func errorResponse(message string, details []string) gin.H {
 	}
 }
 
+// detailsOrEmpty garantiza que el campo details siempre sea un array en el JSON de respuesta,
+// nunca null — esto simplifica el manejo de errores en el frontend.
 func detailsOrEmpty(details []string) []string {
 	if len(details) == 0 {
 		return []string{}

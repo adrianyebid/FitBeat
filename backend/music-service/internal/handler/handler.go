@@ -11,10 +11,14 @@ import (
 func RegisterRoutes(r *gin.Engine, engineService *service.EngineService) {
 	v1 := r.Group("/api/v1")
 	trainingHandler := NewTrainingHandler(engineService)
+	wsHandler := NewWSHandler()
 	{
 		v1.GET("/health", HealthCheck)
 		v1.POST("/sessions", trainingHandler.CreateSession)
-		v1.POST("/biometrics", trainingHandler.ProcessBiometric)
+
+		// WebSocket — canal persistente para el control del reproductor durante la sesión.
+		// Conexión: ws://localhost:8081/api/v1/ws?token=<spotify_token>
+		v1.GET("/ws", wsHandler.HandleSession)
 	}
 }
 
@@ -22,6 +26,6 @@ func RegisterRoutes(r *gin.Engine, engineService *service.EngineService) {
 func HealthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status":  "ok",
-		"service": "music-biometric-engine",
+		"service": "music-service",
 	})
 }

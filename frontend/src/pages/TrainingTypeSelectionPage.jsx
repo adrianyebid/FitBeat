@@ -33,7 +33,7 @@ function TrainingTypeSelectionPage() {
       description: "Entrenamiento funcional intenso y variado"
     },
     {
-      id: "hitt",
+      id: "hiit",
       name: "HIIT",
       icon: "⚡",
       description: "Entrenamiento por intervalos de alta intensidad"

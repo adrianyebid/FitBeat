@@ -3,31 +3,31 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const genres = [
-  { name: "Pop", icon: "P" },
-  { name: "Reggaeton", icon: "R" },
-  { name: "Hip-Hop", icon: "H" },
-  { name: "Rap", icon: "RP" },
-  { name: "Rock", icon: "RK" },
-  { name: "Electronica", icon: "E" },
-  { name: "Alternativo", icon: "A" },
-  { name: "Clasica", icon: "C" },
-  { name: "Reggae", icon: "RG" },
-  { name: "Dancehall", icon: "D" },
-  { name: "Regional Mexicana", icon: "M" },
-  { name: "Baladas", icon: "B" }
+  { name: "Pop", icon: "🎤" },
+  { name: "Reggaetón", icon: "🔥" },
+  { name: "Hip-Hop", icon: "🎧" },
+  { name: "Rap", icon: "🎙️" },
+  { name: "Rock", icon: "🎸" },
+  { name: "Electrónica", icon: "🎛️" },
+  { name: "Alternativo", icon: "🎶" },
+  { name: "Clásica", icon: "🎻" },
+  { name: "Reggae", icon: "🌴" },
+  { name: "Dancehall", icon: "💃" },
+  { name: "Regional Mexicana", icon: "🤠" },
+  { name: "Baladas", icon: "❤️" }
 ];
 
 const moods = [
-  { name: "Chill", icon: "CH" },
-  { name: "Latina", icon: "L" },
-  { name: "Tristeza", icon: "T" },
-  { name: "Nostalgia", icon: "N" },
-  { name: "Serenidad", icon: "S" },
-  { name: "Alegria", icon: "AL" },
-  { name: "Amor", icon: "AM" },
-  { name: "Despecho", icon: "DE" },
-  { name: "Romance", icon: "RO" },
-  { name: "Mariachi", icon: "MA" }
+  { name: "Chill", icon: "🌙" },
+  { name: "Latina", icon: "💃" },
+  { name: "Tristeza", icon: "🥀" },
+  { name: "Nostalgia", icon: "🕰️" },
+  { name: "Serenidad", icon: "🌊" },
+  { name: "Alegría", icon: "😄" },
+  { name: "Amor", icon: "💖" },
+  { name: "Despecho", icon: "💔" },
+  { name: "Romance", icon: "🌹" },
+  { name: "Mariachi", icon: "🎺" }
 ];
 
 function MusicSurveyPage() {
@@ -49,7 +49,7 @@ function MusicSurveyPage() {
 
   function nextStep() {
     if (selectedGenres.length === 0) {
-      setStepError("Selecciona al menos un genero para continuar.");
+      setStepError("Selecciona al menos un género para continuar.");
       return;
     }
     setStepError("");
@@ -82,13 +82,13 @@ function MusicSurveyPage() {
     <main className="survey-layout">
       <section className="survey-card">
         <div className="survey-header">
-          <h1>Personaliza tu musica</h1>
-          <p>Selecciona lo que mas te motiva para entrenar</p>
+          <h1>🎵 Personaliza tu música</h1>
+          <p>Selecciona lo que más te motiva para entrenar</p>
         </div>
 
         {step === 1 && (
           <>
-            <h2 className="survey-question">Que generos te gustan?</h2>
+            <h2 className="survey-question">¿Qué géneros te gustan?</h2>
 
             <div className="survey-options-grid">
               {genres.map((g) => (
@@ -145,7 +145,7 @@ function MusicSurveyPage() {
 
             <div className="survey-buttons">
               <button type="button" className="survey-back-btn" onClick={prevStep}>
-                Atras
+                ← Atrás
               </button>
 
               <button type="button" className="survey-continue-btn" onClick={finishSurvey}>
