@@ -74,6 +74,21 @@ services:
       - component_a_network
     restart: always
 
+  # ───────────── Music Service (Componente B) ─────────────
+  music_service:
+    build: ./backend/music-service
+    container_name: component_b_api
+    ports:
+      - "8081:8081"
+    environment:
+      PORT: "8081"
+      COUCHDB_ADDR: "${COUCHDB_USER:-admin}:${COUCHDB_PASSWORD:-secret}@couchdb:5984"
+    depends_on:
+      - couchdb
+    networks:
+      - component_a_network
+    restart: always
+
 # ─────────────── Red Interna (Bridge) ─────────────
 networks:
   component_a_network:
