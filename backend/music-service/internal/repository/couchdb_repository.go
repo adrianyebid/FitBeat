@@ -50,6 +50,34 @@ func (r *CouchDBRepository) ensureDB() error {
 	return nil
 }
 
+// GetSession recupera una sesión de entrenamiento de CouchDB por su ID.
+func (r *CouchDBRepository) GetSession(id string) (model.TrainingSession, error) {
+	url := fmt.Sprintf("%s/%s/%s", r.baseURL, dbName, id)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return model.TrainingSession{}, err
+	}
+
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return model.TrainingSession{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return model.TrainingSession{}, fmt.Errorf("session not found")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return model.TrainingSession{}, fmt.Errorf("couchdb: GetSession returned status %d", resp.StatusCode)
+	}
+
+	var session model.TrainingSession
+	if err := json.NewDecoder(resp.Body).Decode(&session); err != nil {
+		return model.TrainingSession{}, err
+	}
+	return session, nil
+}
+
 // SaveSession persiste una sesión de entrenamiento en CouchDB.
 // El _id del documento CouchDB es el ID de la sesión.
 func (r *CouchDBRepository) SaveSession(session model.TrainingSession) error {

@@ -113,6 +113,27 @@ func (h *TrainingHandler) CreateSession(c *gin.Context) {
 	})
 }
 
+// GetSession devuelve los datos de una sesión de entrenamiento almacenada en CouchDB.
+func (h *TrainingHandler) GetSession(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	if id == "" {
+		c.JSON(http.StatusBadRequest, errorResponse("session id is required", nil))
+		return
+	}
+
+	session, err := h.engineService.GetSession(id)
+	if err != nil {
+		if err.Error() == "session not found" {
+			c.JSON(http.StatusNotFound, errorResponse("session not found", nil))
+			return
+		}
+		c.JSON(http.StatusInternalServerError, errorResponse("failed to retrieve session", nil))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"session": session})
+}
+
 // errorResponse construye el formato de error estándar de la API.
 func errorResponse(message string, details []string) gin.H {
 	return gin.H{

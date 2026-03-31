@@ -15,6 +15,7 @@ func RegisterRoutes(r *gin.Engine, engineService *service.EngineService) {
 	{
 		v1.GET("/health", HealthCheck)
 		v1.POST("/sessions", trainingHandler.CreateSession)
+		v1.GET("/sessions/:id", trainingHandler.GetSession)
 
 		// WebSocket — canal persistente para el control del reproductor durante la sesión.
 		// Conexión: ws://localhost:8081/api/v1/ws?token=<spotify_token>

@@ -50,6 +50,11 @@ func NewEngineService(repo repository.EngineRepository) *EngineService {
 	}
 }
 
+// GetSession recupera una sesión de entrenamiento por su ID.
+func (s *EngineService) GetSession(id string) (model.TrainingSession, error) {
+	return s.repo.GetSession(strings.TrimSpace(id))
+}
+
 // CreateSession orquesta la creación de una sesión de entrenamiento en 3 pasos:
 // 1. Persiste la sesión en el repositorio
 // 2. Busca tracks en Spotify en paralelo (Fase 1)
