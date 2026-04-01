@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
@@ -36,7 +36,13 @@ function MusicSurveyPage() {
   const [selectedMoods, setSelectedMoods] = useState([]);
   const [stepError, setStepError] = useState("");
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isNewUser, clearNewUserFlag } = useAuth();
+
+  useEffect(() => {
+    if (!isNewUser) {
+      navigate("/dashboard");
+    }
+  }, [isNewUser, navigate]);
 
   function toggle(item, list, setList) {
     setStepError("");
@@ -75,6 +81,7 @@ function MusicSurveyPage() {
     };
 
     localStorage.setItem("musicPreferences", JSON.stringify(preferences));
+    clearNewUserFlag();
     navigate("/dashboard");
   }
 

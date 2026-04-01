@@ -4,7 +4,6 @@ import {
   refreshSession as refreshSessionRequest,
   register as registerRequest
 } from "../api/authApi";
-import { mockUser, USE_MOCK_DATA } from "../api/mockData";
 import { clearAuthSession, persistAuthSession, readAuthSession } from "../utils/authStorage";
 import { clearMusicPreferences } from "../utils/musicPreferences";
 
@@ -33,17 +32,6 @@ export function AuthProvider({ children }) {
       return stored;
     }
 
-    // En desarrollo, usar datos mock si no hay sesion guardada
-    if (USE_MOCK_DATA) {
-      const mockSession = {
-        user: mockUser,
-        accessToken: "",
-        refreshToken: ""
-      };
-      persistAuthSession(mockSession);
-      return mockSession;
-    }
-
     return null;
   });
 
@@ -53,9 +41,11 @@ export function AuthProvider({ children }) {
       accessToken: session?.accessToken || "",
       refreshToken: session?.refreshToken || "",
       isAuthenticated: Boolean(session?.user),
+      isNewUser: session?.isNewUser || false,
       async login(form) {
         const result = await loginRequest(form);
         const normalized = normalizeAuthResult(result);
+        normalized.isNewUser = false;
         setSession(normalized);
         persistAuthSession(normalized);
         return result;
@@ -63,6 +53,7 @@ export function AuthProvider({ children }) {
       async register(form) {
         const result = await registerRequest(form);
         const normalized = normalizeAuthResult(result);
+        normalized.isNewUser = true;
         setSession(normalized);
         persistAuthSession(normalized);
         return result;
@@ -86,6 +77,13 @@ export function AuthProvider({ children }) {
         setSession(null);
         clearAuthSession();
         clearMusicPreferences();
+      },
+      clearNewUserFlag() {
+        if (session) {
+          const updated = { ...session, isNewUser: false };
+          setSession(updated);
+          persistAuthSession(updated);
+        }
       }
     }),
     [session]

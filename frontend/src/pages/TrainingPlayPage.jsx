@@ -182,6 +182,7 @@ function TrainingPlayPage() {
   const transferInFlightRef = useRef(false);
   const webPlayerReadyRef = useRef(false);
   const webPlayerWaitersRef = useRef([]);
+  const sessionStartTimeRef = useRef(Date.now());
   const playbackPositionMsRef = useRef(0);
   const playbackUpdatedAtRef = useRef(0);
   const playbackTrackIdRef = useRef("");
@@ -311,50 +312,15 @@ function TrainingPlayPage() {
     waitForWebPlayerReady
   ]);
 
-  const syncElapsedTime = useCallback(
-    (positionMs, trackId, isPaused) => {
-      const seconds = Math.max(0, Math.floor(positionMs / 1000));
-      const trackChanged = trackId && trackId !== playbackTrackIdRef.current;
-      if (trackChanged) {
-        playbackTrackIdRef.current = trackId;
-      }
-
-      setElapsedTime((prev) => {
-        if (trackChanged) {
-          return seconds;
-        }
-        if (seconds >= prev) {
-          return seconds;
-        }
-        if (!isPaused && prev - seconds <= 2) {
-          return prev;
-        }
-        return seconds;
-      });
-    },
-    []
-  );
-
   useEffect(() => {
     const timerId = setInterval(() => {
-      const base = playbackPositionMsRef.current || 0;
-      const updatedAt = playbackUpdatedAtRef.current || 0;
-      if (!updatedAt) {
-        return;
-      }
-      const delta = isPlaying ? Math.max(0, Date.now() - updatedAt) : 0;
-      const positionMs = base + delta;
-      setElapsedTime((prev) => {
-        const seconds = Math.max(0, Math.floor(positionMs / 1000));
-        if (!isPlaying) {
-          return seconds;
-        }
-        return seconds < prev ? prev : seconds;
-      });
+      const elapsedMs = Date.now() - sessionStartTimeRef.current;
+      const elapsedSeconds = Math.floor(elapsedMs / 1000);
+      setElapsedTime(elapsedSeconds);
     }, 500);
 
     return () => clearInterval(timerId);
-  }, [isPlaying]);
+  }, []);
 
   const fetchNowPlaying = useCallback(async () => {
     if (!user?.id) {
@@ -530,7 +496,9 @@ function TrainingPlayPage() {
             playbackPositionMsRef.current = state.position;
             playbackUpdatedAtRef.current = Date.now();
             const trackId = state.track_window?.current_track?.id || "";
-            syncElapsedTime(state.position, trackId, state.paused);
+            if (trackId && trackId !== playbackTrackIdRef.current) {
+              playbackTrackIdRef.current = trackId;
+            }
           }
 
           const track = state.track_window?.current_track;
@@ -568,7 +536,7 @@ function TrainingPlayPage() {
       webPlayerReadyRef.current = false;
       webPlayerWaitersRef.current = [];
     };
-  }, [getFreshSpotifyToken, spotifyToken, syncElapsedTime, transferPlaybackToWebPlayer, user?.id]);
+  }, [getFreshSpotifyToken, spotifyToken, transferPlaybackToWebPlayer, user?.id]);
 
   useEffect(() => {
     if (!trainingSession.engineSessionId || !spotifyToken) {
