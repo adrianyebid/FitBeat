@@ -41,6 +41,19 @@ class UserResponse(BaseModel):
     preferred_genres: Optional[List[str]] = None
     preferred_mood: Optional[str] = None
     favorite_sport: Optional[str] = None
+    music_survey_completed: bool = False
 
     class Config:
         from_attributes = True
+
+
+class UpdateMusicPreferencesSchema(BaseModel):
+    """Esquema para actualizar las preferencias musicales del usuario."""
+    genres: List[str] = Field(
+        ...,
+        description="Lista de géneros musicales preferidos.",
+    )
+    moods: List[str] = Field(
+        ...,
+        description="Lista de moods para el entrenamiento.",
+    )
