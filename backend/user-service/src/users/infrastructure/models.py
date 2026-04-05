@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Integer, JSON
+from sqlalchemy import Column, String, Integer, JSON, Boolean
 from src.core.database import Base
 
 class User(Base):
@@ -14,4 +14,5 @@ class User(Base):
     preferred_genres = Column(JSON, nullable=True)      # Lista de géneros, ej: ["Rock", "Pop"]
     preferred_mood = Column(String, nullable=True)       # Mood motivacional
     favorite_sport = Column(String, nullable=True)       # Actividad física
+    music_survey_completed = Column(Boolean, default=False, nullable=False)  # Indica si completó la encuesta
 

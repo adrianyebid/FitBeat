@@ -42,18 +42,6 @@ function TrainingPage() {
 
         <div className="training-cards">
           <div
-            className={`training-card ${selectedMode === "smartwatch" ? "selected" : ""}`}
-            onClick={() => handleSelectMode("smartwatch")}
-          >
-            <div className="card-icon">⌚</div>
-            <h2>Smartwatch</h2>
-            <p>Sincroniza con tu dispositivo inteligente para tracking automático</p>
-            <button type="button" className="card-btn">
-              Usar Smartwatch
-            </button>
-          </div>
-
-          <div
             className={`training-card ${selectedMode === "manual" ? "selected" : ""}`}
             onClick={() => handleSelectMode("manual")}
           >

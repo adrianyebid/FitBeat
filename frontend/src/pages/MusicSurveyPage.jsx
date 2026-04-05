@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { updateMusicPreferences, getUserInfo } from "../api/userApi";
 
 const genres = [
   { name: "Pop", icon: "🎤" },
@@ -35,8 +36,36 @@ function MusicSurveyPage() {
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [selectedMoods, setSelectedMoods] = useState([]);
   const [stepError, setStepError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, clearNewUserFlag } = useAuth();
+
+  useEffect(() => {
+    // Verificar si el usuario ya completó la encuesta
+    const checkSurveyStatus = async () => {
+      if (!user?.id) {
+        navigate("/dashboard");
+        return;
+      }
+
+      try {
+        const userInfo = await getUserInfo(user.id);
+        // Si ya completó la encuesta, redirigir al dashboard
+        if (userInfo?.music_survey_completed) {
+          clearNewUserFlag();
+          navigate("/dashboard");
+        }
+      } catch (error) {
+        console.error("Error al verificar estado de encuesta:", error);
+        // Si hay error, permitir completar la encuesta
+      } finally {
+        setIsChecking(false);
+      }
+    };
+
+    checkSurveyStatus();
+  }, [user?.id, navigate, clearNewUserFlag]);
 
   function toggle(item, list, setList) {
     setStepError("");
@@ -61,21 +90,42 @@ function MusicSurveyPage() {
     setStep(1);
   }
 
-  function finishSurvey() {
+  async function finishSurvey() {
     if (selectedMoods.length === 0) {
       setStepError("Selecciona al menos un mood para continuar.");
       return;
     }
 
-    const preferences = {
-      user_id: user?.id || null,
-      genres: selectedGenres,
-      moods: selectedMoods,
-      updated_at: new Date().toISOString()
-    };
+    setIsLoading(true);
+    setStepError("");
 
-    localStorage.setItem("musicPreferences", JSON.stringify(preferences));
-    navigate("/dashboard");
+    try {
+      // Guardar en la base de datos (única fuente de verdad)
+      await updateMusicPreferences(user.id, {
+        genres: selectedGenres,
+        moods: selectedMoods
+      });
+
+      clearNewUserFlag();
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Error al guardar preferencias:", error);
+      setStepError("Error al guardar tus preferencias. Intenta de nuevo.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  if (isChecking) {
+    return (
+      <main className="survey-layout">
+        <section className="survey-card">
+          <div className="survey-header">
+            <p>Cargando...</p>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (
@@ -97,6 +147,7 @@ function MusicSurveyPage() {
                   type="button"
                   className={`survey-option-card ${selectedGenres.includes(g.name) ? "active" : ""}`}
                   onClick={() => toggle(g.name, selectedGenres, setSelectedGenres)}
+                  disabled={isLoading}
                 >
                   <span className="survey-option-icon">{g.icon}</span>
                   <span>{g.name}</span>
@@ -112,7 +163,7 @@ function MusicSurveyPage() {
 
             <div className="survey-buttons">
               <div></div>
-              <button type="button" className="survey-continue-btn" onClick={nextStep}>
+              <button type="button" className="survey-continue-btn" onClick={nextStep} disabled={isLoading}>
                 Siguiente
               </button>
             </div>
@@ -130,6 +181,7 @@ function MusicSurveyPage() {
                   type="button"
                   className={`survey-option-card ${selectedMoods.includes(m.name) ? "active" : ""}`}
                   onClick={() => toggle(m.name, selectedMoods, setSelectedMoods)}
+                  disabled={isLoading}
                 >
                   <span className="survey-option-icon">{m.icon}</span>
                   <span>{m.name}</span>
@@ -144,12 +196,12 @@ function MusicSurveyPage() {
             ) : null}
 
             <div className="survey-buttons">
-              <button type="button" className="survey-back-btn" onClick={prevStep}>
+              <button type="button" className="survey-back-btn" onClick={prevStep} disabled={isLoading}>
                 ← Atrás
               </button>
 
-              <button type="button" className="survey-continue-btn" onClick={finishSurvey}>
-                Ir al dashboard
+              <button type="button" className="survey-continue-btn" onClick={finishSurvey} disabled={isLoading}>
+                {isLoading ? "Guardando..." : "Ir al dashboard"}
               </button>
             </div>
           </>

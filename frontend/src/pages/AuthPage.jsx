@@ -57,10 +57,11 @@ function AuthPage() {
     try {
       if (mode === "login") {
         await login(form);
+        navigate("/");
       } else {
         await register(form);
+        navigate("/music-survey");
       }
-      navigate("/");
     } catch (error) {
       setApiError(error.message || "No se pudo completar la solicitud");
       setApiDetails(error.details || []);

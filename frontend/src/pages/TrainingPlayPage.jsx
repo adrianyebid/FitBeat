@@ -4,13 +4,45 @@ import { useAuth } from "../context/AuthContext";
 import { useTraining } from "../context/TrainingContext";
 import { createEngineSession } from "../api/trainingApi";
 import { getSpotifyInternalToken, getSpotifyNowPlaying } from "../api/authApi";
+import { getUserInfo } from "../api/userApi";
 import {
   connectPlayerSocket,
   disconnectPlayerSocket,
   sendPlayerAction,
   sendUpdatedToken
 } from "../api/playerSocket";
-import { buildMusicPayloadFromSurvey } from "../utils/musicPreferences";
+
+const GENRE_ALIASES = {
+  pop: "pop",
+  reggaeton: "reggaeton",
+  "hip-hop": "hip-hop",
+  "hip hop": "hip-hop",
+  rap: "rap",
+  rock: "rock",
+  electronica: "electronic",
+  electrnica: "electronic",
+  alternativo: "alternative",
+  clasica: "classical",
+  classica: "classical",
+  reggae: "reggae",
+  dancehall: "dancehall",
+  "regional mexicana": "regional-mexicana",
+  baladas: "baladas",
+  "baladas romanticas": "baladas",
+};
+
+const CATEGORY_ALIASES = {
+  chill: "chill",
+  latina: "latina",
+  tristeza: "tristeza",
+  nostalgia: "nostalgia",
+  serenidad: "serenidad",
+  alegria: "alegria",
+  amor: "amor",
+  despecho: "despecho",
+  romance: "romance",
+  mariachi: "mariachi",
+};
 
 const TRAINING_NAMES = {
   running: "Running",
@@ -158,6 +190,48 @@ async function resolveSpotifyToken(user) {
   return refreshed.accessToken;
 }
 
+function normalizeString(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function mapAndDedupe(values, aliases) {
+  const normalized = values
+    .map((value) => aliases[normalizeString(value)] || normalizeString(value))
+    .filter(Boolean);
+
+  return Array.from(new Set(normalized));
+}
+
+async function buildMusicPayloadFromDatabase(userId) {
+  /**
+   * Carga las preferencias musicales directamente desde la BD
+   * y construye el payload para el motor de música.
+   */
+  try {
+    const userInfo = await getUserInfo(userId);
+    if (!userInfo || !userInfo.preferred_genres || userInfo.preferred_genres.length === 0) {
+      return null;
+    }
+
+    const genres = mapAndDedupe(userInfo.preferred_genres, GENRE_ALIASES);
+    const categories = userInfo.preferred_mood 
+      ? mapAndDedupe([userInfo.preferred_mood], CATEGORY_ALIASES)
+      : [];
+
+    return {
+      genres,
+      categories,
+    };
+  } catch (error) {
+    console.error("Error al cargar preferencias musicales desde BD:", error);
+    return null;
+  }
+}
+
 function TrainingPlayPage() {
   const { trainingType } = useParams();
   const navigate = useNavigate();
@@ -182,6 +256,7 @@ function TrainingPlayPage() {
   const transferInFlightRef = useRef(false);
   const webPlayerReadyRef = useRef(false);
   const webPlayerWaitersRef = useRef([]);
+  const sessionStartTimeRef = useRef(Date.now());
   const playbackPositionMsRef = useRef(0);
   const playbackUpdatedAtRef = useRef(0);
   const playbackTrackIdRef = useRef("");
@@ -231,7 +306,7 @@ function TrainingPlayPage() {
       setSessionError("");
 
       try {
-        const musicPayload = buildMusicPayloadFromSurvey(user.id);
+        const musicPayload = await buildMusicPayloadFromDatabase(user.id);
         if (!musicPayload) {
           throw new Error(
             "No encontramos tus preferencias musicales. Completa la encuesta para continuar."
@@ -311,50 +386,15 @@ function TrainingPlayPage() {
     waitForWebPlayerReady
   ]);
 
-  const syncElapsedTime = useCallback(
-    (positionMs, trackId, isPaused) => {
-      const seconds = Math.max(0, Math.floor(positionMs / 1000));
-      const trackChanged = trackId && trackId !== playbackTrackIdRef.current;
-      if (trackChanged) {
-        playbackTrackIdRef.current = trackId;
-      }
-
-      setElapsedTime((prev) => {
-        if (trackChanged) {
-          return seconds;
-        }
-        if (seconds >= prev) {
-          return seconds;
-        }
-        if (!isPaused && prev - seconds <= 2) {
-          return prev;
-        }
-        return seconds;
-      });
-    },
-    []
-  );
-
   useEffect(() => {
     const timerId = setInterval(() => {
-      const base = playbackPositionMsRef.current || 0;
-      const updatedAt = playbackUpdatedAtRef.current || 0;
-      if (!updatedAt) {
-        return;
-      }
-      const delta = isPlaying ? Math.max(0, Date.now() - updatedAt) : 0;
-      const positionMs = base + delta;
-      setElapsedTime((prev) => {
-        const seconds = Math.max(0, Math.floor(positionMs / 1000));
-        if (!isPlaying) {
-          return seconds;
-        }
-        return seconds < prev ? prev : seconds;
-      });
+      const elapsedMs = Date.now() - sessionStartTimeRef.current;
+      const elapsedSeconds = Math.floor(elapsedMs / 1000);
+      setElapsedTime(elapsedSeconds);
     }, 500);
 
     return () => clearInterval(timerId);
-  }, [isPlaying]);
+  }, []);
 
   const fetchNowPlaying = useCallback(async () => {
     if (!user?.id) {
@@ -530,7 +570,9 @@ function TrainingPlayPage() {
             playbackPositionMsRef.current = state.position;
             playbackUpdatedAtRef.current = Date.now();
             const trackId = state.track_window?.current_track?.id || "";
-            syncElapsedTime(state.position, trackId, state.paused);
+            if (trackId && trackId !== playbackTrackIdRef.current) {
+              playbackTrackIdRef.current = trackId;
+            }
           }
 
           const track = state.track_window?.current_track;
@@ -568,7 +610,7 @@ function TrainingPlayPage() {
       webPlayerReadyRef.current = false;
       webPlayerWaitersRef.current = [];
     };
-  }, [getFreshSpotifyToken, spotifyToken, syncElapsedTime, transferPlaybackToWebPlayer, user?.id]);
+  }, [getFreshSpotifyToken, spotifyToken, transferPlaybackToWebPlayer, user?.id]);
 
   useEffect(() => {
     if (!trainingSession.engineSessionId || !spotifyToken) {
