@@ -6,36 +6,31 @@ Plataforma fitness con arquitectura por componentes:
 2. Componente A en FastAPI (auth local JWT + Spotify OAuth + token provider)
 3. Componente B en Go (music-service: sesiones + control de reproductor por WebSocket)
 
-Fecha de referencia de este estado: **2026-03-15**.
-
 ## Estado actual del proyecto
 
 ### Frontend (`frontend/`)
 
 Implementado:
 - Login y registro contra `POST /api/auth/login` y `POST /api/auth/register`.
-- Persistencia real de sesion: `user`, `accessToken`, `refreshToken` en localStorage.
+- Persistencia de sesion: `user`, `accessToken`, `refreshToken` en localStorage.
 - Envio automatico de `Authorization: Bearer <accessToken>` a Componente A.
-- Flujo visible de Spotify desde dashboard:
+- Flujo Spotify desde dashboard:
   - Boton `Conectar Spotify`
   - Verificacion de estado por `GET /auth/verify-connection/{user_id}`
   - Now Playing por `GET /auth/now-playing/{user_id}`
   - Retorno de callback a dashboard con estado de conexion
-- Encuesta musical guardada en `musicPreferences` y mapeada a:
-  - `genres[]`
-  - `categories[]`
-- Inicio de entrenamiento con contrato actual de Componente B:
+- Encuesta musical guardada en `musicPreferences` y mapeada a `genres[]` y `categories[]`.
+- Inicio de entrenamiento con contrato de Componente B:
   - `POST /api/v1/sessions`
   - payload: `user_id`, `activity_type`, `mode`, `genres`, `categories`, `spotify_token`, `device_id`
-- Control de reproductor por WebSocket:
-  - `play`, `pause`, `next`, `previous`
+- Control de reproductor por WebSocket: `play`, `pause`, `next`, `previous`
   - Manejo de `token_expired -> refresh token -> update_token -> retry accion`
 
 Pendiente:
-- Agregar tests E2E del flujo completo (auth + spotify + entrenamiento + ws).
-- Mejorar UX cuando la sesion JWT expira durante navegacion normal (mensajes globales y redireccion).
+- Tests E2E del flujo completo (auth + spotify + entrenamiento + ws).
+- Mejorar UX cuando la sesion JWT expira durante navegacion normal.
 
-### Componente A (`src/`)
+### Componente A (`backend/user-service/`)
 
 Implementado:
 - Auth local JWT:
@@ -43,29 +38,15 @@ Implementado:
   - `POST /api/auth/login`
   - `POST /api/auth/refresh`
   - `GET /api/auth/me`
-- Rotacion y revocacion de refresh token:
-  - tabla `refresh_token_sessions`
-  - cada refresh invalida el token anterior y emite uno nuevo
+- Rotacion y revocacion de refresh token (tabla `refresh_token_sessions`).
 - OAuth Spotify:
   - `GET /auth/login/{user_id}`
   - `GET /auth/callback`
   - `GET /auth/verify-connection/{user_id}`
   - `GET /auth/now-playing/{user_id}`
-  - Scopes incluyen `streaming` para Web Playback SDK (requiere reconectar Spotify)
-- Token provider interno:
-  - `GET /auth/internal/token/{user_id}`
-  - protegido con JWT del usuario (sub debe coincidir con `user_id`) o `X-Internal-Token`
+- Token provider interno: `GET /auth/internal/token/{user_id}`
 - CORS habilitado para `http://localhost:5173` y `FRONTEND_APP_URL`.
-- Persistencia actual en PostgreSQL:
-  - `users`
-  - `spotify_tokens`
-  - `local_auth_credentials`
-  - `refresh_token_sessions`
-
-Pendiente:
-- Migraciones formales de base de datos (Alembic) en lugar de depender de `create_all`.
-- Endpoints de gestion de sesiones (`logout`, `logout-all`, revocacion manual).
-- Hardening extra: rate limiting en login/refresh, auditoria de eventos de auth.
+- Persistencia en PostgreSQL: `users`, `spotify_tokens`, `local_auth_credentials`, `refresh_token_sessions`.
 
 ### Componente B (`backend/music-service/`)
 
@@ -77,8 +58,7 @@ Implementado:
 
 Pendiente:
 - Autenticacion/autorizacion de servicio para sus endpoints.
-- Observabilidad (metricas, trazas, logs estructurados de acciones WS).
-- Contrato formal versionado entre componentes.
+- Observabilidad (metricas, trazas, logs estructurados).
 
 ## Flujo end-to-end actual
 
@@ -86,35 +66,38 @@ Pendiente:
 2. Frontend guarda JWT (access + refresh) y mantiene sesion.
 3. Usuario completa encuesta musical.
 4. Desde dashboard, usuario conecta Spotify (`/auth/login/{user_id}`).
-5. Spotify redirige a `/auth/callback`; Componente A guarda tokens Spotify y devuelve al dashboard.
+5. Spotify redirige a `/auth/callback`; Componente A guarda tokens y devuelve al dashboard.
 6. Usuario inicia entrenamiento:
-   - frontend solicita token Spotify valido a `/auth/internal/token/{user_id}` (autenticado con JWT)
-   - frontend crea sesion en Componente B con payload completo
+   - Frontend solicita token Spotify a `/auth/internal/token/{user_id}` (autenticado con JWT).
+   - Frontend crea sesion en Componente B con payload completo.
 7. Frontend abre WebSocket contra Componente B y controla reproduccion.
-8. Si Componente B responde `token_expired`, frontend refresca token Spotify y reintenta accion.
+8. Si Componente B responde `token_expired`, frontend refresca token Spotify y reintenta.
 
 ## Variables de entorno
 
-### Raiz (`.env`) - Componente A
+### Raiz (`.env`)
 
-Ver plantilla en [`.env.example`](c:/FitBeat/.env.example).
+```env
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=component_a
 
-Variables clave:
-- `DATABASE_URL`
-- `JWT_SECRET_KEY`
-- `ACCESS_TOKEN_EXPIRE_MINUTES`
-- `REFRESH_TOKEN_EXPIRE_DAYS`
-- `FRONTEND_APP_URL`
-- `INTERNAL_SERVICE_TOKEN` (opcional, para trafico service-to-service)
-- `SPOTIFY_CLIENT_ID`
-- `SPOTIFY_CLIENT_SECRET`
-- `REDIRECT_URI`
-  - Para local, usar **loopback IP** (no `localhost`):
-    - `http://127.0.0.1:8000/auth/callback`
+SPOTIFY_CLIENT_ID=
+SPOTIFY_CLIENT_SECRET=
+REDIRECT_URI=http://127.0.0.1:8000/auth/callback
+
+JWT_SECRET_KEY=
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+FRONTEND_APP_URL=http://localhost:5173
+INTERNAL_SERVICE_TOKEN=
+ENCRYPTION_KEY=
+
+COUCHDB_USER=admin
+COUCHDB_PASSWORD=secret
+```
 
 ### Frontend (`frontend/.env`)
-
-Ver plantilla en [`frontend/.env.example`](c:/FitBeat/frontend/.env.example).
 
 ```env
 VITE_AUTH_API_URL=http://localhost:8000
@@ -122,129 +105,38 @@ VITE_MUSIC_API_URL=http://localhost:8081
 VITE_WS_API_URL=ws://localhost:8081
 ```
 
-## Ejecucion local rapida
+## Ejecucion local
 
 ### Requisitos previos
 
-- Docker Desktop (para Postgres + CouchDB).
-- Go instalado (para Componente B).
-- Node.js + npm (para frontend).
-- Cuenta Spotify Developer con app creada:
-  - Redirect URI configurado en la app: `http://127.0.0.1:8000/auth/callback`
-  - `Client ID` y `Client Secret` cargados en `.env`.
-  - Para reproducir musica: usuario **Premium** y un dispositivo activo (PC, celular o Web Playback).
-  - Si cambian scopes (ej. agregar `streaming`), hay que volver a conectar Spotify.
-
-### 1) Componente A + Postgres + CouchDB
-
-En la raiz del repo:
+- Docker Desktop
+- Cuenta Spotify Developer con `REDIRECT_URI=http://127.0.0.1:8000/auth/callback` configurado en la app y usuario Premium para reproduccion.
 
 ```bash
 docker-compose up --build
 ```
 
-API disponible en `http://localhost:8000`.
+| Servicio | URL |
+|---|---|
+| Frontend (React) | http://localhost:5173 |
+| Componente A (FastAPI) | http://localhost:8000 |
+| Componente B (Go) | http://localhost:8081 |
+| PostgreSQL | localhost:5433 |
+| CouchDB | http://localhost:5984 |
 
-### 2) Componente B (Go music-service)
+## Prueba del flujo completo
 
-```bash
-cd backend/music-service
-go run cmd/main.go
-```
+1. Abrir `http://localhost:5173`, registrarse o iniciar sesion.
+2. Completar encuesta en `/music-survey`.
+3. En `/dashboard`, pulsar `Conectar Spotify` y completar OAuth.
+4. Abrir Spotify y reproducir una cancion para activar un dispositivo.
+5. Pulsar `Comenzar entrenamiento` y recorrer `/training` → `/training/select-type` → `/training/play/:trainingType`.
+6. Probar controles del reproductor: `previous`, `play/pause`, `next`.
 
-Servicio disponible en `http://localhost:8081`.
+### Rutas protegidas
 
-### 3) Frontend
+Redirigen a `/` si no hay sesion valida: `/dashboard`, `/music-survey`, `/training`, `/training/select-type`, `/training/play/:trainingType`.
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+### Reset de sesion en navegador
 
-App en `http://localhost:5173`.
-
-### (Opcional) Silenciar logs de CouchDB
-
-Crear DB interna `_users` (solo una vez por volumen):
-
-```bash
-curl -X PUT http://admin:secret@127.0.0.1:5984/_users
-```
-
-## Guia de prueba end-to-end (frontend)
-
-### 1) Preparar entorno
-
-1. En la raiz, crear `.env` usando [`.env.example`](c:/FitBeat/.env.example).
-2. Verificar al menos:
-   - `FRONTEND_APP_URL=http://localhost:5173`
-   - `JWT_SECRET_KEY` (no usar default en ambientes compartidos)
-   - `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `REDIRECT_URI`
-     - Para local: `REDIRECT_URI=http://127.0.0.1:8000/auth/callback`
-3. En frontend, crear `frontend/.env` usando [`frontend/.env.example`](c:/FitBeat/frontend/.env.example).
-
-### 2) Levantar servicios
-
-1. Componente A + Postgres + CouchDB:
-```bash
-docker-compose up --build
-```
-2. Componente B:
-```bash
-cd backend/music-service
-go run cmd/main.go
-```
-3. Frontend:
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-### 3) Probar flujo completo en UI
-
-1. Abrir `http://localhost:5173`.
-2. En `/`, registrarse o iniciar sesion.
-3. Completar encuesta en `/music-survey` (si aplica).
-4. En `/dashboard`, pulsar `Conectar Spotify` y completar OAuth.
-5. Verificar retorno a dashboard con estado de Spotify conectado.
-6. Abrir Spotify (PC o celular) y **reproducir una cancion** para activar un dispositivo.
-6. Pulsar `Comenzar entrenamiento` y recorrer:
-   - `/training`
-   - `/training/select-type`
-   - `/training/play/:trainingType`
-7. En reproductor, probar acciones WS:
-   - `previous`
-   - `play/pause`
-   - `next`
-
-### 4) Rutas protegidas esperadas
-
-- Si no hay sesion valida, cualquier ruta protegida redirige a `/`.
-- Rutas protegidas:
-  - `/dashboard`
-  - `/music-survey`
-  - `/training`
-  - `/training/select-type`
-  - `/training/play/:trainingType`
-
-### 5) Verificaciones tecnicas recomendadas
-
-- Login/registro retornan tokens y se guardan en localStorage (`fitbeat-auth`).
-- Requests hacia Componente A incluyen `Authorization: Bearer <accessToken>`.
-- Al pedir token interno Spotify, debe pasar autenticacion del usuario.
-- Si Spotify devuelve expiracion durante reproduccion, frontend intenta refresh y reintento.
-- Now Playing se consulta via `/auth/now-playing/{user_id}` y muestra el track actual en UI.
-
-### 6) Reset rapido de pruebas
-
-Si necesitan empezar de cero en navegador, borrar estas keys de localStorage:
-- `fitbeat-auth`
-- `fitbeat-user`
-- `musicPreferences`
-
-## Notas
-
-- Existe `backend/target/...` con artefactos Java antiguos; no forma parte del backend activo actual.
-- El endpoint `/auth/internal/token/{user_id}` ya no debe usarse sin autenticacion valida.
+Borrar del localStorage: `fitbeat-auth`, `fitbeat-user`, `musicPreferences`.

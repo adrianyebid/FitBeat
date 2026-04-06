@@ -89,6 +89,26 @@ services:
       - component_a_network
     restart: always
 
+  # ───────────── Frontend (React + Vite) ─────────────
+  frontend:
+    build: ./frontend
+    container_name: fitbeat_frontend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_AUTH_API_URL: http://localhost:8000
+      VITE_MUSIC_API_URL: http://localhost:8081
+      VITE_WS_API_URL: ws://localhost:8081
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - component_a
+      - music_service
+    networks:
+      - component_a_network
+    restart: always
+
 # ─────────────── Red Interna (Bridge) ─────────────
 networks:
   component_a_network:
