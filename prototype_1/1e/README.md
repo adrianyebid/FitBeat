@@ -17,12 +17,14 @@
 - Fitbeat
 
 ### Logo
+![WhatsApp Image 2026-04-05 at 9 40 18 PM](https://github.com/user-attachments/assets/cfa66370-0594-4240-a5f4-f7bdf2c139c3)
 
 ### Description
 - FitBeat es una plataforma fitness que sincroniza música de Spotify con el entrenamiento del usuario. El usuario selecciona su tipo de actividad (running, cycling, etc.) y sus preferencias musicales, y el sistema crea una sesión de entrenamiento que encola automáticamente tracks en su Spotify según esas preferencias. Durante el entrenamiento, el usuario controla la reproducción (play, pause, siguiente, anterior) en tiempo real a través de la plataforma.
 
 ## Architectural Structures
 ### C&C View
+<img width="781" height="603" alt="Vistas_diagramas_arquitectura drawio (1)" src="https://github.com/user-attachments/assets/d32063b6-d7ec-4a8e-9304-502d71c35768" />
 
 ### Description of architectural styles used
 - Se utilizó una arquitectura de microservicios donde cada componente es independiente. El Componente A (FastAPI) gestiona autenticación e identidad, el Componente B (Go) gestiona sesiones de entrenamiento y reproducción, y el frontend (React) actúa como cliente. La comunicación entre componentes sigue el estilo REST para operaciones síncronas (login, creación de sesión, OAuth) y WebSocket para el control de reproducción en tiempo real. Cada servicio posee su propia base de datos (Database per Service): PostgreSQL para datos relacionales de usuarios y CouchDB para documentos de sesiones de entrenamiento, garantizando el aislamiento de datos entre microservicios. El despliegue está containerizado con Docker Compose, agrupando todos los servicios en una red interna compartida.
