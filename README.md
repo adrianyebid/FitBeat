@@ -24,7 +24,7 @@
 
 ## Architectural Structures
 ### C&C View
-<img width="792" height="402" alt="C C1 drawio" src="https://github.com/user-attachments/assets/5bad796f-e880-4d00-a5b0-6aa675297bf2" />
+![C C1 drawio](https://github.com/user-attachments/assets/5bad796f-e880-4d00-a5b0-6aa675297bf2)
 
 ### Description of architectural styles used
 - Se utilizó una arquitectura de microservicios donde cada componente es independiente. El Componente A (FastAPI) gestiona autenticación e identidad, el Componente B (Go) gestiona sesiones de entrenamiento y reproducción, y el frontend (React) actúa como cliente. La comunicación entre componentes sigue el estilo REST para operaciones síncronas (login, creación de sesión, OAuth) y WebSocket para el control de reproducción en tiempo real. Cada servicio posee su propia base de datos (Database per Service): PostgreSQL para datos relacionales de usuarios y CouchDB para documentos de sesiones de entrenamiento, garantizando el aislamiento de datos entre microservicios. El despliegue está containerizado con Docker Compose, agrupando todos los servicios en una red interna compartida.
