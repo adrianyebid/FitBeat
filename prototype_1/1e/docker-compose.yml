@@ -2,13 +2,14 @@
 # Docker Compose — Componente A (User Service + PostgreSQL)
 # ===================================================================
 
+name: prototype_1
 
 services:
 
   # ─────────────── Base de Datos Relacional (CA) ───────────────
   postgres_db:
     image: postgres:15-alpine
-    container_name: component_a_db
+    container_name: fb_users_db
     env_file:
       - .env
     environment:
@@ -32,7 +33,7 @@ services:
   # ─────────────── API FastAPI (Componente A) ─────────────
   component_a:
     build: ./backend/user-service
-    container_name: component_a_api
+    container_name: fb_users_ms
  
     command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
@@ -62,14 +63,20 @@ services:
   # ───────────── CouchDB (Componente B) ─────────────
   couchdb:
     image: couchdb:3
-    container_name: component_b_couchdb
+    container_name: fb_music_db
     environment:
+      COUCHDB_SINGLE_NODE: "true"
       COUCHDB_USER: ${COUCHDB_USER:-admin}
       COUCHDB_PASSWORD: ${COUCHDB_PASSWORD:-secret}
     ports:
       - "5984:5984"
     volumes:
       - couchdb_data:/opt/couchdb/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:5984/_up >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     networks:
       - component_a_network
     restart: always
@@ -77,14 +84,15 @@ services:
   # ───────────── Music Service (Componente B) ─────────────
   music_service:
     build: ./backend/music-service
-    container_name: component_b_api
+    container_name: fb_music_ms
     ports:
       - "8081:8081"
     environment:
       PORT: "8081"
       COUCHDB_ADDR: "${COUCHDB_USER:-admin}:${COUCHDB_PASSWORD:-secret}@couchdb:5984"
     depends_on:
-      - couchdb
+      couchdb:
+        condition: service_healthy
     networks:
       - component_a_network
     restart: always
