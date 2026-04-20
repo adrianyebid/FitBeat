@@ -1,142 +1,64 @@
 # FitBeat
 
-Plataforma fitness con arquitectura por componentes:
+## Team
+### Name
+- 1e
 
-1. Frontend en React + Vite
-2. Componente A en FastAPI (auth local JWT + Spotify OAuth + token provider)
-3. Componente B en Go (music-service: sesiones + control de reproductor por WebSocket)
+### Team members
+- Nicolas Felipe Arciniegas Lizarazo
+- Karen Lorena Guzman Del Rio
+- Juan David Chacon Muñoz
+- Adrian Yebid Rincon
+- Pablo Felipe Sandoval Menjura
+- Julio Cesar Albadan Sarmiento 
 
-## Estado actual del proyecto
+## Software System
+### Name
+- Fitbeat
 
-### Frontend (`frontend/`)
+### Logo
+![WhatsApp Image 2026-04-05 at 9 40 18 PM](https://github.com/user-attachments/assets/cfa66370-0594-4240-a5f4-f7bdf2c139c3)
 
-Implementado:
-- Login y registro contra `POST /api/auth/login` y `POST /api/auth/register`.
-- Persistencia de sesion: `user`, `accessToken`, `refreshToken` en localStorage.
-- Envio automatico de `Authorization: Bearer <accessToken>` a Componente A.
-- Flujo Spotify desde dashboard:
-  - Boton `Conectar Spotify`
-  - Verificacion de estado por `GET /auth/verify-connection/{user_id}`
-  - Now Playing por `GET /auth/now-playing/{user_id}`
-  - Retorno de callback a dashboard con estado de conexion
-- Encuesta musical guardada en `musicPreferences` y mapeada a `genres[]` y `categories[]`.
-- Inicio de entrenamiento con contrato de Componente B:
-  - `POST /api/v1/sessions`
-  - payload: `user_id`, `activity_type`, `mode`, `genres`, `categories`, `spotify_token`, `device_id`
-- Control de reproductor por WebSocket: `play`, `pause`, `next`, `previous`
-  - Manejo de `token_expired -> refresh token -> update_token -> retry accion`
+### Description
+- FitBeat es una plataforma fitness que sincroniza música de Spotify con el entrenamiento del usuario. El usuario selecciona su tipo de actividad (running, cycling, etc.) y sus preferencias musicales, y el sistema crea una sesión de entrenamiento que encola automáticamente tracks en su Spotify según esas preferencias. Durante el entrenamiento, el usuario controla la reproducción (play, pause, siguiente, anterior) en tiempo real a través de la plataforma.
 
-Pendiente:
-- Tests E2E del flujo completo (auth + spotify + entrenamiento + ws).
-- Mejorar UX cuando la sesion JWT expira durante navegacion normal.
+## Architectural Structures
+### C&C View
+<img width="781" height="603" alt="Vistas_diagramas_arquitectura drawio (1)" src="https://github.com/user-attachments/assets/d32063b6-d7ec-4a8e-9304-502d71c35768" />
 
-### Componente A (`backend/user-service/`)
+### Description of architectural styles used
+- Se utilizó una arquitectura de microservicios donde cada componente es independiente. El Componente A (FastAPI) gestiona autenticación e identidad, el Componente B (Go) gestiona sesiones de entrenamiento y reproducción, y el frontend (React) actúa como cliente. La comunicación entre componentes sigue el estilo REST para operaciones síncronas (login, creación de sesión, OAuth) y WebSocket para el control de reproducción en tiempo real. Cada servicio posee su propia base de datos (Database per Service): PostgreSQL para datos relacionales de usuarios y CouchDB para documentos de sesiones de entrenamiento, garantizando el aislamiento de datos entre microservicios. El despliegue está containerizado con Docker Compose, agrupando todos los servicios en una red interna compartida.
 
-Implementado:
-- Auth local JWT:
-  - `POST /api/auth/register`
-  - `POST /api/auth/login`
-  - `POST /api/auth/refresh`
-  - `GET /api/auth/me`
-- Rotacion y revocacion de refresh token (tabla `refresh_token_sessions`).
-- OAuth Spotify:
-  - `GET /auth/login/{user_id}`
-  - `GET /auth/callback`
-  - `GET /auth/verify-connection/{user_id}`
-  - `GET /auth/now-playing/{user_id}`
-- Token provider interno: `GET /auth/internal/token/{user_id}`
-- CORS habilitado para `http://localhost:5173` y `FRONTEND_APP_URL`.
-- Persistencia en PostgreSQL: `users`, `spotify_tokens`, `local_auth_credentials`, `refresh_token_sessions`.
+### Description of architectural elements and relations
+- Frontend (React + Vite): Cliente web que renderiza la UI. Se comunica con el Componente A vía HTTP REST para autenticación y con el Componente B vía HTTP REST para crear sesiones y vía WebSocket para controlar la reproducción.
 
-### Componente B (`backend/music-service/`)
+- Componente A — User Service (FastAPI): Gestiona registro, login, tokens JWT, OAuth con Spotify y almacenamiento de tokens Spotify por usuario. Expone una API REST consumida por el frontend.
 
-Implementado:
-- `GET /api/v1/health`
-- `POST /api/v1/sessions`
-- `GET /api/v1/ws?token=...`
-- Busqueda/enqueue de tracks en paralelo y persistencia de sesiones en CouchDB.
+- Componente B — Music Service (Go): Gestiona la creación de sesiones de entrenamiento, encola tracks en Spotify a través de su API, y mantiene un canal WebSocket con el frontend para recibir comandos de reproducción en tiempo real.
 
-Pendiente:
-- Autenticacion/autorizacion de servicio para sus endpoints.
-- Observabilidad (metricas, trazas, logs estructurados).
+- PostgreSQL: Base de datos relacional del Componente A. Almacena usuarios, credenciales locales, tokens Spotify y sesiones de refresh JWT.
 
-## Flujo end-to-end actual
+- CouchDB: Base de datos documental del Componente B. Almacena documentos de sesiones de entrenamiento (actividad, géneros, tracks encolados).
 
-1. Usuario hace login/registro en frontend (Componente A).
-2. Frontend guarda JWT (access + refresh) y mantiene sesion.
-3. Usuario completa encuesta musical.
-4. Desde dashboard, usuario conecta Spotify (`/auth/login/{user_id}`).
-5. Spotify redirige a `/auth/callback`; Componente A guarda tokens y devuelve al dashboard.
-6. Usuario inicia entrenamiento:
-   - Frontend solicita token Spotify a `/auth/internal/token/{user_id}` (autenticado con JWT).
-   - Frontend crea sesion en Componente B con payload completo.
-7. Frontend abre WebSocket contra Componente B y controla reproduccion.
-8. Si Componente B responde `token_expired`, frontend refresca token Spotify y reintenta.
+- Spotify API: Servicio externo. El Componente A gestiona su OAuth y el Componente B consume sus endpoints de búsqueda y control de cola de reproducción.
 
-## Variables de entorno
+## Instructions for deploying the software system locally.
 
-### Raiz (`.env`)
+### Requisitos previos:
+- Docker Desktop instalado y corriendo
+- Cuenta Spotify Developer con una app creada
 
-```env
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_DB=component_a
+### Paso a paso:
+1. Clonar el repositorio y configurar variables de entorno
+Crear un archivo .env en la raíz del proyecto como esta en el archivo .env.example agregando las keys de spotify correspondientes a nuestra app; SPOTIFY_CLIENT_ID y SPOTIFY_CLIENT_SECRET
 
-SPOTIFY_CLIENT_ID=
-SPOTIFY_CLIENT_SECRET=
-REDIRECT_URI=http://127.0.0.1:8000/auth/callback
+2. Levantar todos los servicios con el comando: docker-compose up --build
 
-JWT_SECRET_KEY=
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-REFRESH_TOKEN_EXPIRE_DAYS=7
-FRONTEND_APP_URL=http://localhost:5173
-INTERNAL_SERVICE_TOKEN=
-ENCRYPTION_KEY=
+3. Verificar que todo esté corriendo docker-compose ps
 
-COUCHDB_USER=admin
-COUCHDB_PASSWORD=secret
-```
-
-### Frontend (`frontend/.env`)
-
-```env
-VITE_AUTH_API_URL=http://localhost:8000
-VITE_MUSIC_API_URL=http://localhost:8081
-VITE_WS_API_URL=ws://localhost:8081
-```
-
-## Ejecucion local
-
-### Requisitos previos
-
-- Docker Desktop
-- Cuenta Spotify Developer con `REDIRECT_URI=http://127.0.0.1:8000/auth/callback` configurado en la app y usuario Premium para reproduccion.
-
-```bash
-docker-compose up --build
-```
-
-| Servicio | URL |
-|---|---|
-| Frontend (React) | http://localhost:5173 |
-| Componente A (FastAPI) | http://localhost:8000 |
-| Componente B (Go) | http://localhost:8081 |
-| PostgreSQL | localhost:5433 |
-| CouchDB | http://localhost:5984 |
-
-## Prueba del flujo completo
-
-1. Abrir `http://localhost:5173`, registrarse o iniciar sesion.
-2. Completar encuesta en `/music-survey`.
-3. En `/dashboard`, pulsar `Conectar Spotify` y completar OAuth.
-4. Abrir Spotify y reproducir una cancion para activar un dispositivo.
-5. Pulsar `Comenzar entrenamiento` y recorrer `/training` → `/training/select-type` → `/training/play/:trainingType`.
-6. Probar controles del reproductor: `previous`, `play/pause`, `next`.
-
-### Rutas protegidas
-
-Redirigen a `/` si no hay sesion valida: `/dashboard`, `/music-survey`, `/training`, `/training/select-type`, `/training/play/:trainingType`.
-
-### Reset de sesion en navegador
-
-Borrar del localStorage: `fitbeat-auth`, `fitbeat-user`, `musicPreferences`.
+### Flujo:
+1. Abrir http://localhost:5173 (frontend web)
+2. Registrarse o iniciar sesión
+3. Completar la encuesta musical
+4. Conectar cuenta Spotify desde el dashboard
+5. Iniciar un entrenamiento y controlar la reproducción desde la plataforma
