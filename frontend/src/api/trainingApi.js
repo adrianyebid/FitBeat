@@ -50,3 +50,15 @@ export function createEngineSession(payload) {
     body: JSON.stringify(payload)
   });
 }
+
+export function finishEngineSession(sessionId, payload = {}) {
+  const normalizedSessionId = String(sessionId || "").trim();
+  if (!normalizedSessionId) {
+    throw new Error("sessionId is required to finish engine session.");
+  }
+
+  return requestEngine(`/api/v1/sessions/${encodeURIComponent(normalizedSessionId)}/finish`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}

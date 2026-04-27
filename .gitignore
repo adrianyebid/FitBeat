@@ -70,6 +70,7 @@ postgres_data/
 # ─────────── Distribución / Build ───────────
 dist/
 build/
+target/
 *.egg-info/
 *.egg
 
