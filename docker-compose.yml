@@ -1,26 +1,19 @@
-# ===================================================================
-# Docker Compose — Componente A (User Service + PostgreSQL)
-# ===================================================================
-
 name: prototype_1
 
 services:
-
-  # ─────────────── Base de Datos Relacional (CA) ───────────────
   postgres_db:
     image: postgres:15-alpine
     container_name: fb_users_db
     env_file:
       - .env
     environment:
-      
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5433:5432" 
+      - "5433:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data 
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h 127.0.0.1 -p 5432"]
       interval: 5s
@@ -30,11 +23,9 @@ services:
       - component_a_network
     restart: always
 
-  # ─────────────── API FastAPI (Componente A) ─────────────
   component_a:
     build: ./backend/user-service
     container_name: fb_users_ms
- 
     command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./backend/user-service:/app
@@ -43,15 +34,10 @@ services:
     env_file:
       - .env
     environment:
-      # Conexión interna: Usa el nombre del servicio 'postgres_db' y el puerto 5432 
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
-      
-      # Inyección de variables críticas del .env [cite: 35]
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
       REDIRECT_URI: ${REDIRECT_URI}
-      
-      # Llave para mitigar CWE-312 (Cifrado de tokens en reposo) 
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
     depends_on:
       postgres_db:
@@ -60,7 +46,6 @@ services:
       - component_a_network
     restart: always
 
-  # ───────────── CouchDB (Componente B) ─────────────
   couchdb:
     image: couchdb:3
     container_name: fb_music_db
@@ -81,7 +66,71 @@ services:
       - component_a_network
     restart: always
 
-  # ───────────── Music Service (Componente B) ─────────────
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: fb_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - component_a_network
+    restart: always
+
+  event_processor_db:
+    image: postgres:15-alpine
+    container_name: fb_event_db
+    environment:
+      POSTGRES_USER: ${EVENT_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${EVENT_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${EVENT_DB_NAME:-event_processor}
+    ports:
+      - "5434:5432"
+    volumes:
+      - event_processor_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${EVENT_DB_USER:-postgres} -d ${EVENT_DB_NAME:-event_processor} -h 127.0.0.1 -p 5432"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    networks:
+      - component_a_network
+    restart: always
+
+  event_processor:
+    build: ./backend/event-processor
+    container_name: fb_event_processor
+    ports:
+      - "8082:8082"
+    environment:
+      EVENT_DB_URL: jdbc:postgresql://event_processor_db:5432/${EVENT_DB_NAME:-event_processor}
+      EVENT_DB_USER: ${EVENT_DB_USER:-postgres}
+      EVENT_DB_PASSWORD: ${EVENT_DB_PASSWORD:-postgres}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_PASS: ${RABBITMQ_PASS:-guest}
+      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
+      EVENT_QUEUE_NAME: ${EVENT_QUEUE_NAME:-fitbeat.event-processor.q}
+      EVENT_DLQ_NAME: ${EVENT_DLQ_NAME:-fitbeat.event-processor.dlq}
+      WEEKLY_SESSIONS_GOAL: ${WEEKLY_SESSIONS_GOAL:-3}
+      EVENT_SOURCE: event-processor
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      event_processor_db:
+        condition: service_healthy
+    networks:
+      - component_a_network
+    restart: always
+
   music_service:
     build: ./backend/music-service
     container_name: fb_music_ms
@@ -90,14 +139,19 @@ services:
     environment:
       PORT: "8081"
       COUCHDB_ADDR: "${COUCHDB_USER:-admin}:${COUCHDB_PASSWORD:-secret}@couchdb:5984"
+      EVENTS_ENABLED: "true"
+      RABBITMQ_URL: "amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/"
+      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
+      EVENT_SOURCE: music-service
     depends_on:
       couchdb:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - component_a_network
     restart: always
 
-  # ───────────── Frontend (React + Vite) ─────────────
   frontend:
     build: ./frontend
     container_name: fitbeat_frontend
@@ -117,12 +171,11 @@ services:
       - component_a_network
     restart: always
 
-# ─────────────── Red Interna (Bridge) ─────────────
 networks:
   component_a_network:
     driver: bridge
 
-# ─────────────── Volumen Persistente ─────────────
 volumes:
   postgres_data:
   couchdb_data:
+  event_processor_data:

@@ -1,9 +1,12 @@
 package handler
 
 import (
+	"errors"
+	"io"
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/adrianyebid/fitbeat/music-service/internal/service"
 	"github.com/gin-gonic/gin"
@@ -20,10 +23,14 @@ type createSessionRequest struct {
 	UserID       string   `json:"user_id"`
 	ActivityType string   `json:"activity_type"` // ej: "running", "cycling"
 	Mode         string   `json:"mode"`          // ej: "automatic", "manual"
-	Genres     []string `json:"genres"`     // géneros musicales preferidos del usuario
-	Categories []string `json:"categories"` // categorías preferidas del usuario
+	Genres       []string `json:"genres"`        // géneros musicales preferidos del usuario
+	Categories   []string `json:"categories"`    // categorías preferidas del usuario
 	SpotifyToken string   `json:"spotify_token"` // access token de Spotify del usuario
 	DeviceID     string   `json:"device_id"`     // device id para Web Playback
+}
+
+type finishSessionRequest struct {
+	EndedAt string `json:"ended_at"`
 }
 
 func NewTrainingHandler(engineService *service.EngineService) *TrainingHandler {
@@ -132,6 +139,50 @@ func (h *TrainingHandler) GetSession(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"session": session})
+}
+
+// FinishSession marca la sesión como finalizada y publica un evento session.finished.
+func (h *TrainingHandler) FinishSession(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	if id == "" {
+		c.JSON(http.StatusBadRequest, errorResponse("session id is required", nil))
+		return
+	}
+
+	var req finishSessionRequest
+	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
+		c.JSON(http.StatusBadRequest, errorResponse("invalid JSON payload", nil))
+		return
+	}
+
+	finishedAt := time.Now().UTC()
+	if strings.TrimSpace(req.EndedAt) != "" {
+		parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(req.EndedAt))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, errorResponse("ended_at must be RFC3339", []string{"example: 2026-04-27T15:04:05Z"}))
+			return
+		}
+		finishedAt = parsed.UTC()
+	}
+
+	session, err := h.engineService.FinishSession(id, finishedAt)
+	if err != nil {
+		switch err.Error() {
+		case "session not found":
+			c.JSON(http.StatusNotFound, errorResponse("session not found", nil))
+		default:
+			c.JSON(http.StatusInternalServerError, errorResponse("failed to finish session", []string{err.Error()}))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": gin.H{
+			"session_id":  session.ID,
+			"finished_at": session.FinishedAt,
+			"message":     "session finished",
+		},
+	})
 }
 
 // errorResponse construye el formato de error estándar de la API.

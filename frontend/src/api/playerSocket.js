@@ -5,6 +5,7 @@ const PLAYER_ACTIONS = new Set(["play", "pause", "next", "previous"]);
 
 let socket = null;
 let currentToken = "";
+let currentSessionId = "";
 let reconnectTimer = null;
 let reconnectAttempts = 0;
 let shouldReconnect = false;
@@ -32,7 +33,10 @@ function notify(name, payload) {
 }
 
 function socketUrl(token) {
-  return `${WS_API_URL}/api/v1/ws?token=${encodeURIComponent(token)}`;
+  const baseUrl = `${WS_API_URL}/api/v1/ws?token=${encodeURIComponent(token)}`;
+  return currentSessionId
+    ? `${baseUrl}&session_id=${encodeURIComponent(currentSessionId)}`
+    : baseUrl;
 }
 
 function openSocket() {
@@ -79,13 +83,22 @@ function sendMessage(payload) {
   socket.send(JSON.stringify(payload));
 }
 
-export function connectPlayerSocket(token, nextListeners = {}) {
+export function connectPlayerSocket(token, sessionIdOrListeners = {}, nextListeners = {}) {
   const normalizedToken = String(token || "").trim();
   if (!normalizedToken) {
     throw new Error("No se puede abrir WebSocket sin spotify token.");
   }
 
-  listeners = { ...listeners, ...nextListeners };
+  let sessionId = "";
+  let mergedListeners = nextListeners;
+
+  if (typeof sessionIdOrListeners === "string") {
+    sessionId = String(sessionIdOrListeners || "").trim();
+  } else if (sessionIdOrListeners && typeof sessionIdOrListeners === "object") {
+    mergedListeners = sessionIdOrListeners;
+  }
+
+  listeners = { ...listeners, ...mergedListeners };
   const sameToken = currentToken === normalizedToken;
   const isOpen = socket && socket.readyState === WebSocket.OPEN;
   const isConnecting = socket && socket.readyState === WebSocket.CONNECTING;
@@ -98,6 +111,7 @@ export function connectPlayerSocket(token, nextListeners = {}) {
   shouldReconnect = true;
   reconnectAttempts = 0;
   currentToken = normalizedToken;
+  currentSessionId = sessionId;
 
   if (socket) {
     socket.onopen = null;
@@ -115,6 +129,7 @@ export function disconnectPlayerSocket() {
   shouldReconnect = false;
   clearReconnectTimer();
   currentToken = "";
+  currentSessionId = "";
   reconnectAttempts = 0;
 
   if (!socket) {

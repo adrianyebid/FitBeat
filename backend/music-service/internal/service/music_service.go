@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/adrianyebid/fitbeat/music-service/internal/events"
 	"github.com/adrianyebid/fitbeat/music-service/internal/model"
 	"github.com/adrianyebid/fitbeat/music-service/internal/repository"
 )
@@ -39,13 +40,15 @@ type CreateSessionOutput struct {
 // EngineService implementa la lógica de creación y consulta de sesiones de entrenamiento.
 type EngineService struct {
 	repo       repository.EngineRepository
+	publisher  events.Publisher
 	httpClient *http.Client
 	idCounter  uint64
 }
 
-func NewEngineService(repo repository.EngineRepository) *EngineService {
+func NewEngineService(repo repository.EngineRepository, publisher events.Publisher, _ string) *EngineService {
 	return &EngineService{
 		repo:       repo,
+		publisher:  publisher,
 		httpClient: &http.Client{},
 	}
 }
@@ -180,7 +183,46 @@ func (s *EngineService) CreateSession(input CreateSessionInput) (CreateSessionOu
 		return CreateSessionOutput{}, err
 	}
 
+	if err := s.publishSessionStarted(session); err != nil {
+		return CreateSessionOutput{}, err
+	}
+
 	return CreateSessionOutput{Session: session}, nil
+}
+
+func (s *EngineService) FinishSession(sessionID string, finishedAt time.Time) (model.TrainingSession, error) {
+	session, err := s.repo.UpdateSessionFinished(strings.TrimSpace(sessionID), finishedAt.UTC())
+	if err != nil {
+		return model.TrainingSession{}, err
+	}
+
+	payload := map[string]any{
+		"session_id":    session.ID,
+		"user_id":       session.UserID,
+		"activity_type": session.ActivityType,
+		"mode":          session.Mode,
+		"finished_at":   finishedAt.Format(time.RFC3339),
+	}
+
+	if err := s.publisher.Publish("session.finished", payload); err != nil {
+		return model.TrainingSession{}, err
+	}
+
+	return session, nil
+}
+
+func (s *EngineService) PublishTrackSkipped(sessionID string) error {
+	if strings.TrimSpace(sessionID) == "" {
+		return nil
+	}
+
+	payload := map[string]any{
+		"session_id": strings.TrimSpace(sessionID),
+		"action":     "next",
+		"skipped_at": time.Now().UTC().Format(time.RFC3339),
+	}
+
+	return s.publisher.Publish("track.skipped", payload)
 }
 
 // enqueueSpotifyTrack agrega un track a la cola del dispositivo activo del usuario en Spotify.
@@ -264,3 +306,14 @@ func (s *EngineService) nextID(prefix string) string {
 	return fmt.Sprintf("%s_%d_%d", prefix, time.Now().UTC().UnixNano(), n)
 }
 
+func (s *EngineService) publishSessionStarted(session model.TrainingSession) error {
+	payload := map[string]any{
+		"session_id":    session.ID,
+		"user_id":       session.UserID,
+		"activity_type": session.ActivityType,
+		"mode":          session.Mode,
+		"started_at":    session.CreatedAt.Format(time.RFC3339),
+	}
+
+	return s.publisher.Publish("session.started", payload)
+}

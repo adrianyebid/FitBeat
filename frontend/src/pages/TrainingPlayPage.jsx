@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTraining } from "../context/TrainingContext";
-import { createEngineSession } from "../api/trainingApi";
+import { createEngineSession, finishEngineSession } from "../api/trainingApi";
 import { getSpotifyInternalToken, getSpotifyNowPlaying } from "../api/authApi";
 import { getUserInfo } from "../api/userApi";
 import {
@@ -652,7 +652,7 @@ function TrainingPlayPage() {
     setSessionError("");
 
     try {
-      connectPlayerSocket(spotifyTokenRef.current || spotifyToken, {
+      connectPlayerSocket(spotifyTokenRef.current || spotifyToken, trainingSession.engineSessionId, {
         onOpen: () => {
           if (!active) {
             return;
@@ -800,11 +800,26 @@ function TrainingPlayPage() {
     handlePlayerAction(isPlaying ? "pause" : "play");
   };
 
-  const handleFinishSession = () => {
+  const handleFinishSession = async () => {
     setIsFinishingSession(true);
-    disconnectPlayerSocket();
-    clearTrainingSession();
-    navigate("/dashboard");
+    setSessionError("");
+
+    try {
+      if (trainingSession.engineSessionId) {
+        await finishEngineSession(trainingSession.engineSessionId, {
+          ended_at: new Date().toISOString()
+        });
+      }
+      disconnectPlayerSocket();
+      clearTrainingSession();
+      navigate("/dashboard");
+    } catch (error) {
+      setSessionError(
+        parseErrorMessage(error, "No se pudo finalizar la sesion de entrenamiento.")
+      );
+    } finally {
+      setIsFinishingSession(false);
+    }
   };
 
   const handleBackToTraining = () => {
