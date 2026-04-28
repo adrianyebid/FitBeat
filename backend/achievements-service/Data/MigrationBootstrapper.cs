@@ -8,6 +8,11 @@ public static class MigrationBootstrapper
 {
     public static async Task BaselineIfNeededAsync(AchievementsDbContext db)
     {
+        if (!db.Database.IsNpgsql())
+        {
+            return;
+        }
+
         var allMigrations = db.Database.GetMigrations().ToList();
         var appliedMigrations = db.Database.GetAppliedMigrations().ToList();
 
@@ -57,6 +62,49 @@ WHERE NOT EXISTS (
         insert.Parameters.Add(versionParam);
 
         await insert.ExecuteNonQueryAsync();
+    }
+
+    public static async Task EnsureRuntimeTablesAsync(AchievementsDbContext db)
+    {
+        if (db.Database.IsNpgsql())
+        {
+            await db.Database.ExecuteSqlRawAsync("""
+                CREATE TABLE IF NOT EXISTS "ProcessedInboundEvents" (
+                    "Id" BIGSERIAL PRIMARY KEY,
+                    "EventId" text NOT NULL,
+                    "EventType" text NOT NULL,
+                    "Source" text NULL,
+                    "UserId" text NULL,
+                    "ProcessedAtUtc" timestamp with time zone NOT NULL
+                );
+                """);
+
+            await db.Database.ExecuteSqlRawAsync("""
+                CREATE UNIQUE INDEX IF NOT EXISTS "IX_ProcessedInboundEvents_EventId"
+                ON "ProcessedInboundEvents" ("EventId");
+                """);
+
+            return;
+        }
+
+        if (db.Database.IsSqlite())
+        {
+            await db.Database.ExecuteSqlRawAsync("""
+                CREATE TABLE IF NOT EXISTS "ProcessedInboundEvents" (
+                    "Id" INTEGER NOT NULL CONSTRAINT "PK_ProcessedInboundEvents" PRIMARY KEY AUTOINCREMENT,
+                    "EventId" TEXT NOT NULL,
+                    "EventType" TEXT NOT NULL,
+                    "Source" TEXT NULL,
+                    "UserId" TEXT NULL,
+                    "ProcessedAtUtc" TEXT NOT NULL
+                );
+                """);
+
+            await db.Database.ExecuteSqlRawAsync("""
+                CREATE UNIQUE INDEX IF NOT EXISTS "IX_ProcessedInboundEvents_EventId"
+                ON "ProcessedInboundEvents" ("EventId");
+                """);
+        }
     }
 
     private static async Task<bool> ExistsAsync(System.Data.Common.DbConnection connection, string tableName)

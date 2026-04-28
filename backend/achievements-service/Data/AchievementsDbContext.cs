@@ -8,6 +8,7 @@ public sealed class AchievementsDbContext(DbContextOptions<AchievementsDbContext
     public DbSet<AchievementDefinition> AchievementCatalog => Set<AchievementDefinition>();
     public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
     public DbSet<TrainingSessionEvent> TrainingSessions => Set<TrainingSessionEvent>();
+    public DbSet<ProcessedInboundEvent> ProcessedInboundEvents => Set<ProcessedInboundEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -20,6 +21,10 @@ public sealed class AchievementsDbContext(DbContextOptions<AchievementsDbContext
 
         modelBuilder.Entity<TrainingSessionEvent>()
             .HasIndex(x => new { x.UserId, x.SessionId })
+            .IsUnique();
+
+        modelBuilder.Entity<ProcessedInboundEvent>()
+            .HasIndex(x => x.EventId)
             .IsUnique();
     }
 }

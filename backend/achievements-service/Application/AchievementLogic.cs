@@ -6,6 +6,7 @@ namespace AchievementsService.Application;
 public static class AchievementLogic
 {
     public const string FirstWorkoutCompleted = "first_workout_completed";
+    public const string First10Sessions = "first_10_sessions";
     public const string FiveSessionsStreak = "five_sessions_streak";
     public const string Weekly100Minutes = "weekly_100_minutes";
 
@@ -23,6 +24,7 @@ public static class AchievementLogic
         var newlyUnlocked = new List<string>();
 
         TryUnlockIf(progress.TotalSessions >= 1, FirstWorkoutCompleted);
+        TryUnlockIf(progress.TotalSessions >= 10, First10Sessions);
         TryUnlockIf(progress.CurrentStreakDays >= 5, FiveSessionsStreak);
         TryUnlockIf(progress.WeeklyMinutes >= 100, Weekly100Minutes);
 

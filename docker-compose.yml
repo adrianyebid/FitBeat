@@ -195,8 +195,24 @@ services:
       ACHIEVEMENTS_DATABASE_URL: Host=achievements_db;Port=5432;Database=${ACH_POSTGRES_DB};Username=${ACH_POSTGRES_USER};Password=${ACH_POSTGRES_PASSWORD}
       ACHIEVEMENTS_DB_PATH: ${ACHIEVEMENTS_DB_PATH:-/app/Data/achievements.db}
       FRONTEND_APP_URL: ${FRONTEND_APP_URL:-http://localhost:5173}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_PASS: ${RABBITMQ_PASS:-guest}
+      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
+      RABBITMQ_DLX_EXCHANGE: ${RABBITMQ_DLX_EXCHANGE:-fitbeat.events.dlx}
+      ACHIEVEMENTS_QUEUE_NAME: ${ACHIEVEMENTS_QUEUE_NAME:-fitbeat.achievements.q}
+      ACHIEVEMENTS_RETRY_QUEUE_NAME: ${ACHIEVEMENTS_RETRY_QUEUE_NAME:-fitbeat.achievements.retry.q}
+      ACHIEVEMENTS_DLQ_NAME: ${ACHIEVEMENTS_DLQ_NAME:-fitbeat.achievements.dlq}
+      ACHIEVEMENTS_RETRY_ROUTING_KEY: ${ACHIEVEMENTS_RETRY_ROUTING_KEY:-fitbeat.achievements.retry}
+      ACHIEVEMENTS_DLQ_ROUTING_KEY: ${ACHIEVEMENTS_DLQ_ROUTING_KEY:-fitbeat.achievements.dlq}
+      ACHIEVEMENTS_MAX_RETRIES: ${ACHIEVEMENTS_MAX_RETRIES:-3}
+      ACHIEVEMENTS_RETRY_DELAY_MS: ${ACHIEVEMENTS_RETRY_DELAY_MS:-5000}
+      ACHIEVEMENTS_DEFAULT_SESSION_MINUTES: ${ACHIEVEMENTS_DEFAULT_SESSION_MINUTES:-30}
     depends_on:
       achievements_db:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8082/health >/dev/null"]

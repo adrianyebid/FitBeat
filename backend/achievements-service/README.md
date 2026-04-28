@@ -2,6 +2,7 @@
 
 Microservicio de gamificación de FitBeat implementado con .NET 8 Minimal API.
 Evalúa sesiones finalizadas y desbloquea logros (badges) por usuario.
+Además consume eventos asíncronos desde RabbitMQ para integrarse con el Event Processor.
 
 ## Base URL
 
@@ -17,8 +18,49 @@ Evalúa sesiones finalizadas y desbloquea logros (badges) por usuario.
 ## Modelo de logros (MVP)
 
 - `first_workout_completed`: primer entrenamiento completado.
+- `first_10_sessions`: primeras 10 sesiones completadas.
 - `five_sessions_streak`: 5 días consecutivos con entrenamientos.
 - `weekly_100_minutes`: 100 minutos acumulados en ventana de 7 días.
+
+## Integración asíncrona (Contrato Event Processor)
+
+- Exchange: `fitbeat.events`
+- Cola propia: `fitbeat.achievements.q`
+- Routing keys suscritas:
+  - `session.finished`
+  - `weekly_goal_reached`
+  - `first_10_sessions`
+- Retry + DLQ:
+  - Retry queue: `fitbeat.achievements.retry.q`
+  - DLQ: `fitbeat.achievements.dlq`
+- Idempotencia por `event_id` en tabla `ProcessedInboundEvents` (único).
+
+Variables de entorno recomendadas:
+
+- `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USER`, `RABBITMQ_PASS`
+- `RABBITMQ_EVENTS_EXCHANGE` (default `fitbeat.events`)
+- `RABBITMQ_DLX_EXCHANGE` (default `fitbeat.events.dlx`)
+- `ACHIEVEMENTS_QUEUE_NAME` (default `fitbeat.achievements.q`)
+- `ACHIEVEMENTS_RETRY_QUEUE_NAME` (default `fitbeat.achievements.retry.q`)
+- `ACHIEVEMENTS_DLQ_NAME` (default `fitbeat.achievements.dlq`)
+- `ACHIEVEMENTS_RETRY_ROUTING_KEY` (default `fitbeat.achievements.retry`)
+- `ACHIEVEMENTS_DLQ_ROUTING_KEY` (default `fitbeat.achievements.dlq`)
+- `ACHIEVEMENTS_MAX_RETRIES` (default `3`)
+- `ACHIEVEMENTS_RETRY_DELAY_MS` (default `5000`)
+- `ACHIEVEMENTS_DEFAULT_SESSION_MINUTES` (fallback de duración para `session.finished` sin duración)
+
+Envelope esperado:
+
+```json
+{
+  "event_id": "uuid-or-random",
+  "event_type": "weekly_goal_reached",
+  "occurred_at": "2026-04-27T15:04:05Z",
+  "source": "event-processor",
+  "version": 1,
+  "payload": {}
+}
+```
 
 ## Contrato API
 
@@ -208,3 +250,4 @@ docker compose up --build
 - Persistencia local con SQLite (`/app/Data/achievements.db`).
 - Catálogo de logros se inicializa automáticamente al arrancar.
 - Idempotencia por combinación `userId + sessionId`.
+- Idempotencia asíncrona adicional por `event_id` para eventos RabbitMQ.

@@ -1,5 +1,7 @@
 using AchievementsService.Data;
 using AchievementsService.Endpoints;
+using AchievementsService.Application;
+using AchievementsService.Messaging;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,6 +27,12 @@ builder.Services.AddDbContext<AchievementsDbContext>(options =>
     options.UseSqlite($"Data Source={dbPath}");
 });
 
+var messagingOptions = AchievementsMessagingOptions.FromEnvironment();
+builder.Services.AddSingleton(messagingOptions);
+builder.Services.AddScoped<AchievementEvaluationService>();
+builder.Services.AddScoped<InboundEventProcessor>();
+builder.Services.AddHostedService<AchievementsRabbitConsumer>();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("frontend", policy =>
@@ -44,6 +52,7 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AchievementsDbContext>();
     await MigrationBootstrapper.BaselineIfNeededAsync(db);
     await db.Database.MigrateAsync();
+    await MigrationBootstrapper.EnsureRuntimeTablesAsync(db);
     await CatalogSeeder.SeedAsync(db);
 }
 
