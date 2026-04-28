@@ -1209,3 +1209,128 @@ small {
     transform: translateY(0);
   }
 }
+
+/* Achievements */
+.achievements-content {
+  width: min(980px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 1.2rem;
+}
+
+.achievements-title-block h1 {
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  color: var(--white-pure);
+}
+
+.achievements-title-block p {
+  margin-top: 0.6rem;
+  color: var(--text-muted);
+}
+
+.achievements-panel {
+  border: 1px solid var(--border-green);
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 14px;
+  padding: 1rem;
+  backdrop-filter: blur(8px);
+}
+
+.achievements-panel h2 {
+  margin-bottom: 0.8rem;
+  color: var(--green);
+  font-size: 1.1rem;
+}
+
+.achievements-form {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.achievements-form label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  color: var(--text-light);
+}
+
+.achievements-form input {
+  border: 1px solid var(--border-green);
+  border-radius: 10px;
+  background: rgba(13, 16, 23, 0.9);
+  color: var(--white-pure);
+  padding: 0.7rem 0.85rem;
+  font: inherit;
+}
+
+.achievements-form input:focus {
+  outline: none;
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px rgba(70, 188, 15, 0.2);
+}
+
+.achievements-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr 1fr;
+}
+
+.achievements-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.achievements-list li {
+  display: grid;
+  gap: 0.2rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 0.7rem;
+}
+
+.achievements-list li strong {
+  color: var(--white-pure);
+}
+
+.achievements-list li span {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.achievements-list li small {
+  color: var(--text-light);
+  font-size: 0.82rem;
+}
+
+.achievements-list li.unlocked {
+  border-color: rgba(70, 188, 15, 0.7);
+  background: rgba(70, 188, 15, 0.12);
+}
+
+.achievements-error,
+.achievements-info {
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.9rem;
+}
+
+.achievements-error {
+  border: 1px solid rgba(177, 4, 4, 0.6);
+  color: #ffd1d1;
+  background: rgba(177, 4, 4, 0.22);
+}
+
+.achievements-info {
+  border: 1px solid rgba(70, 188, 15, 0.5);
+  color: #d8ffc8;
+  background: rgba(70, 188, 15, 0.18);
+}
+
+@media (max-width: 768px) {
+  .achievements-grid {
+    grid-template-columns: 1fr;
+  }
+}
