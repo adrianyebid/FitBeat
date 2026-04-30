@@ -223,6 +223,61 @@ services:
     networks:
       - component_a_network
     restart: always
+   
+  # ───────────── PostgreSQL (Notification Service) ─────────────
+  notification_service_db:
+    image: postgres:15-alpine
+    container_name: fb_notification_db
+    environment:
+      POSTGRES_USER: ${NOTIFICATION_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${NOTIFICATION_DB_NAME:-notification_service}
+    ports:
+      - "5435:5432"
+    volumes:
+      - notification_service_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${NOTIFICATION_DB_USER:-postgres} -d ${NOTIFICATION_DB_NAME:-notification_service} -h 127.0.0.1 -p 5432"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    networks:
+      - component_a_network
+    restart: always
+
+ # ───────────── Notification Service (TypeScript) ─────────────
+  notification_service:
+    build: ./backend/notification-service
+    container_name: fb_notification_ms
+    ports:
+      - "8083:8083"
+    environment:
+      PORT: "8083"
+      NOTIFICATION_DB_URL: postgresql://${NOTIFICATION_DB_USER:-postgres}:${NOTIFICATION_DB_PASSWORD:-postgres}@notification_service_db:5432/${NOTIFICATION_DB_NAME:-notification_service}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
+      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
+      NOTIFICATION_QUEUE_NAME: ${NOTIFICATION_QUEUE_NAME:-fitbeat.notification.q}
+      NOTIFICATION_RETRY_QUEUE_NAME: ${NOTIFICATION_RETRY_QUEUE_NAME:-fitbeat.notification.retry.q}
+      NOTIFICATION_DLQ_NAME: ${NOTIFICATION_DLQ_NAME:-fitbeat.notification.dlq}
+      NOTIFICATION_DLX_NAME: ${NOTIFICATION_DLX_NAME:-fitbeat.notification.dlx}
+      NOTIFICATION_MAX_RETRIES: ${NOTIFICATION_MAX_RETRIES:-3}
+      NOTIFICATION_RETRY_DELAY_MS: ${NOTIFICATION_RETRY_DELAY_MS:-5000}
+      USER_SERVICE_URL: http://component_a:8000
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      notification_service_db:
+        condition: service_healthy
+      component_a:
+        condition: service_started
+    networks:
+      - component_a_network
+    restart: always
 
   # ───────────── Frontend (React + Vite) ─────────────
   frontend:
@@ -260,3 +315,4 @@ volumes:
   couchdb_data:
   event_processor_data:
   achievements_postgres_data:
+  notification_service_data:
