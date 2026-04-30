@@ -1,6 +1,11 @@
-name: prototype_1
+# ===================================================================
+# Docker Compose — Prototype 2 (Componentes A+B+C+D)
+# ===================================================================
+
+name: prototype_2
 
 services:
+  # ─────────────── Base de Datos Relacional (Componente A) ───────────────
   postgres_db:
     image: postgres:15-alpine
     container_name: fb_users_db
@@ -23,6 +28,7 @@ services:
       - component_a_network
     restart: always
 
+  # ─────────────── API FastAPI (Componente A) ───────────────
   component_a:
     build: ./backend/user-service
     container_name: fb_users_ms
@@ -46,6 +52,7 @@ services:
       - component_a_network
     restart: always
 
+  # ───────────── CouchDB (Componente B) ─────────────
   couchdb:
     image: couchdb:3
     container_name: fb_music_db
@@ -66,6 +73,7 @@ services:
       - component_a_network
     restart: always
 
+  # ───────────── RabbitMQ (Infra asincrona) ─────────────
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: fb_rabbitmq
@@ -84,6 +92,7 @@ services:
       - component_a_network
     restart: always
 
+  # ───────────── PostgreSQL (Event Processor) ─────────────
   event_processor_db:
     image: postgres:15-alpine
     container_name: fb_event_db
@@ -104,11 +113,12 @@ services:
       - component_a_network
     restart: always
 
+  # ───────────── Event Processor (Java, async) ─────────────
   event_processor:
     build: ./backend/event-processor
     container_name: fb_event_processor
     ports:
-      - "8082:8082"
+      - "8083:8082"
     environment:
       EVENT_DB_URL: jdbc:postgresql://event_processor_db:5432/${EVENT_DB_NAME:-event_processor}
       EVENT_DB_USER: ${EVENT_DB_USER:-postgres}
@@ -131,6 +141,90 @@ services:
       - component_a_network
     restart: always
 
+  # ───────────── Music Service (Componente B) ─────────────
+  music_service:
+    build: ./backend/music-service
+    container_name: fb_music_ms
+    ports:
+      - "8081:8081"
+    environment:
+      PORT: "8081"
+      COUCHDB_ADDR: "${COUCHDB_USER:-admin}:${COUCHDB_PASSWORD:-secret}@couchdb:5984"
+      EVENTS_ENABLED: "true"
+      RABBITMQ_URL: "amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/"
+      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
+      EVENT_SOURCE: music-service
+    depends_on:
+      couchdb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - component_a_network
+    restart: always
+
+  # ───────────── PostgreSQL (Achievements Service) ─────────────
+  achievements_db:
+    image: postgres:15-alpine
+    container_name: fb_achievements_db
+    environment:
+      POSTGRES_USER: ${ACH_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${ACH_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${ACH_POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - achievements_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ACH_POSTGRES_USER} -d ${ACH_POSTGRES_DB} -h 127.0.0.1 -p 5432"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - component_a_network
+    restart: always
+
+  # ───────────── Achievements Service (Componente D) ─────────────
+  achievements_service:
+    build: ./backend/achievements-service
+    container_name: fb_achievements_ms
+    ports:
+      - "8082:8082"
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:8082
+      ACHIEVEMENTS_DATABASE_URL: Host=achievements_db;Port=5432;Database=${ACH_POSTGRES_DB};Username=${ACH_POSTGRES_USER};Password=${ACH_POSTGRES_PASSWORD}
+      ACHIEVEMENTS_DB_PATH: ${ACHIEVEMENTS_DB_PATH:-/app/Data/achievements.db}
+      FRONTEND_APP_URL: ${FRONTEND_APP_URL:-http://localhost:5173}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_PASS: ${RABBITMQ_PASS:-guest}
+      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
+      RABBITMQ_DLX_EXCHANGE: ${RABBITMQ_DLX_EXCHANGE:-fitbeat.events.dlx}
+      ACHIEVEMENTS_QUEUE_NAME: ${ACHIEVEMENTS_QUEUE_NAME:-fitbeat.achievements.q}
+      ACHIEVEMENTS_RETRY_QUEUE_NAME: ${ACHIEVEMENTS_RETRY_QUEUE_NAME:-fitbeat.achievements.retry.q}
+      ACHIEVEMENTS_DLQ_NAME: ${ACHIEVEMENTS_DLQ_NAME:-fitbeat.achievements.dlq}
+      ACHIEVEMENTS_RETRY_ROUTING_KEY: ${ACHIEVEMENTS_RETRY_ROUTING_KEY:-fitbeat.achievements.retry}
+      ACHIEVEMENTS_DLQ_ROUTING_KEY: ${ACHIEVEMENTS_DLQ_ROUTING_KEY:-fitbeat.achievements.dlq}
+      ACHIEVEMENTS_MAX_RETRIES: ${ACHIEVEMENTS_MAX_RETRIES:-3}
+      ACHIEVEMENTS_RETRY_DELAY_MS: ${ACHIEVEMENTS_RETRY_DELAY_MS:-5000}
+      ACHIEVEMENTS_DEFAULT_SESSION_MINUTES: ${ACHIEVEMENTS_DEFAULT_SESSION_MINUTES:-30}
+    depends_on:
+      achievements_db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8082/health >/dev/null"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - component_a_network
+    restart: always
+   
+  # ───────────── PostgreSQL (Notification Service) ─────────────
   notification_service_db:
     image: postgres:15-alpine
     container_name: fb_notification_db
@@ -151,6 +245,7 @@ services:
       - component_a_network
     restart: always
 
+ # ───────────── Notification Service (TypeScript) ─────────────
   notification_service:
     build: ./backend/notification-service
     container_name: fb_notification_ms
@@ -184,27 +279,7 @@ services:
       - component_a_network
     restart: always
 
-  music_service:
-    build: ./backend/music-service
-    container_name: fb_music_ms
-    ports:
-      - "8081:8081"
-    environment:
-      PORT: "8081"
-      COUCHDB_ADDR: "${COUCHDB_USER:-admin}:${COUCHDB_PASSWORD:-secret}@couchdb:5984"
-      EVENTS_ENABLED: "true"
-      RABBITMQ_URL: "amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/"
-      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
-      EVENT_SOURCE: music-service
-    depends_on:
-      couchdb:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - component_a_network
-    restart: always
-
+  # ───────────── Frontend (React + Vite) ─────────────
   frontend:
     build: ./frontend
     container_name: fitbeat_frontend
@@ -213,23 +288,31 @@ services:
     environment:
       VITE_AUTH_API_URL: http://localhost:8000
       VITE_MUSIC_API_URL: http://localhost:8081
+      VITE_ACHIEVEMENTS_API_URL: http://localhost:8082
       VITE_WS_API_URL: ws://localhost:8081
     volumes:
       - ./frontend:/app
       - /app/node_modules
     depends_on:
-      - component_a
-      - music_service
+      component_a:
+        condition: service_started
+      music_service:
+        condition: service_started
+      achievements_service:
+        condition: service_healthy
     networks:
       - component_a_network
     restart: always
 
+# ─────────────── Red Interna (Bridge) ─────────────
 networks:
   component_a_network:
     driver: bridge
 
+# ─────────────── Volúmenes Persistentes ─────────────
 volumes:
   postgres_data:
   couchdb_data:
   event_processor_data:
+  achievements_postgres_data:
   notification_service_data:

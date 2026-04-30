@@ -5,6 +5,7 @@ import TrainingPage from "./pages/TrainingPage";
 import TrainingTypeSelectionPage from "./pages/TrainingTypeSelectionPage";
 import TrainingPlayPage from "./pages/TrainingPlayPage";
 import MusicSurveyPage from "./pages/MusicSurveyPage";
+import AchievementsPage from "./pages/AchievementsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
 import { TrainingProvider } from "./context/TrainingContext";
@@ -71,6 +72,16 @@ function App() {
           element={
             <ProtectedRoute>
               <MusicSurveyPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Logros */}
+        <Route
+          path="/achievements"
+          element={
+            <ProtectedRoute>
+              <AchievementsPage />
             </ProtectedRoute>
           }
         />

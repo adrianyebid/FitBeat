@@ -130,6 +130,14 @@ function DashboardPage() {
           >
             Comenzar entrenamiento
           </button>
+
+          <button
+            type="button"
+            className="ghost-btn"
+            onClick={() => navigate("/achievements")}
+          >
+            Ver logros
+          </button>
         </div>
       </section>
     </main>

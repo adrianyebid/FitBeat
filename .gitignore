@@ -36,6 +36,10 @@ backend/music-service/bin/
 backend/music-service/tmp/
 backend/music-service/coverage.out
 backend/music-service/*.test
+
+# Backend (C#/.NET)
+backend/achievements-service/bin/
+backend/achievements-service/obj/
 # ===================================================
 # .gitignore — Componente A (Python / FastAPI)
 # ===================================================
