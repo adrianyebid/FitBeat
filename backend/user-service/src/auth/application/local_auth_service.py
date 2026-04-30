@@ -216,3 +216,20 @@ def get_current_user(db: Session, *, access_token: str) -> dict:
         raise AuthServiceError("usuario no encontrado", 404)
 
     return _build_user_payload(credential)
+
+
+def get_user_contact_by_id(db: Session, *, user_id: str) -> dict:
+    credential = (
+        db.query(LocalAuthCredential)
+        .filter(LocalAuthCredential.user_id == user_id)
+        .first()
+    )
+    if not credential:
+        raise AuthServiceError("usuario no encontrado", 404)
+
+    return {
+        "user_id": credential.user_id,
+        "email": credential.email,
+        "first_name": credential.first_name,
+        "last_name": credential.last_name,
+    }

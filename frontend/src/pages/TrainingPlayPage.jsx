@@ -254,6 +254,7 @@ function TrainingPlayPage() {
   const playerRef = useRef(null);
   const deviceIdRef = useRef("");
   const transferInFlightRef = useRef(false);
+  const transferPromiseRef = useRef(null);
   const webPlayerReadyRef = useRef(false);
   const webPlayerWaitersRef = useRef([]);
   const sessionStartTimeRef = useRef(Date.now());
@@ -340,6 +341,8 @@ function TrainingPlayPage() {
         if (!deviceId) {
           throw new Error("No se encontro el device_id del reproductor web.");
         }
+
+        await transferPlaybackToWebPlayer(deviceId);
 
         const response = await createEngineSession({
           user_id: user.id,
@@ -453,36 +456,48 @@ function TrainingPlayPage() {
 
   const transferPlaybackToWebPlayer = useCallback(
     async (deviceId) => {
-      if (!deviceId || transferInFlightRef.current) {
-        return;
+      if (!deviceId) {
+        return false;
       }
 
-      transferInFlightRef.current = true;
-      try {
-        const token = await getFreshSpotifyToken();
-        if (!token) {
-          return;
-        }
+      if (transferPromiseRef.current) {
+        return transferPromiseRef.current;
+      }
 
-        await fetch("https://api.spotify.com/v1/me/player", {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ device_ids: [deviceId], play: false })
-        }).then((response) => {
+      transferPromiseRef.current = (async () => {
+        transferInFlightRef.current = true;
+        try {
+          const token = await getFreshSpotifyToken();
+          if (!token) {
+            throw new Error("No se encontro un token valido para transferir la reproduccion.");
+          }
+
+          const response = await fetch("https://api.spotify.com/v1/me/player", {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ device_ids: [deviceId], play: false })
+          });
+
           if (!response.ok) {
             throw new Error(`Spotify transfer returned ${response.status}`);
           }
-        });
-      } catch (error) {
-        setSessionError(
-          parseErrorMessage(error, "No se pudo activar el reproductor web.")
-        );
-      } finally {
-        transferInFlightRef.current = false;
-      }
+
+          return true;
+        } catch (error) {
+          setSessionError(
+            parseErrorMessage(error, "No se pudo activar el reproductor web.")
+          );
+          throw error;
+        } finally {
+          transferInFlightRef.current = false;
+          transferPromiseRef.current = null;
+        }
+      })();
+
+      return transferPromiseRef.current;
     },
     [getFreshSpotifyToken]
   );
@@ -529,7 +544,9 @@ function TrainingPlayPage() {
             webPlayerWaitersRef.current.forEach((resolver) => resolver());
             webPlayerWaitersRef.current = [];
           }
-          transferPlaybackToWebPlayer(device_id);
+          transferPlaybackToWebPlayer(device_id).catch(() => {
+            // bootstrapSession mostrara el error si la transferencia no termina bien.
+          });
         });
 
         player.addListener("not_ready", ({ device_id }) => {

@@ -143,7 +143,7 @@ public class EventProcessingService {
 
         LocalDate weekStart = toWeekStart(finishedAt.toLocalDate());
         metric.setWeekStart(weekStart);
-        sessionMetricRepository.save(metric);
+        sessionMetricRepository.saveAndFlush(metric);
 
         if (StringUtils.hasText(metric.getUserId())) {
             updateWeeklyStats(metric, weekStart, durationSec);

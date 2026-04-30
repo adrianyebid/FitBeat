@@ -5,10 +5,12 @@ from sqlalchemy.orm import Session
 from src.auth.application.local_auth_service import (
     AuthServiceError,
     get_current_user,
+    get_user_contact_by_id,
     login_local_user,
     refresh_tokens,
     register_local_user,
 )
+from src.core.config import settings
 from src.auth.domain.schemas import (
     AuthResponse,
     AuthUserResponse,
@@ -94,5 +96,20 @@ def me(
         access_token = _extract_bearer_token(authorization)
         result = get_current_user(db, access_token=access_token)
         return result
+    except AuthServiceError as exc:
+        return _error_response(exc.message, exc.status_code)
+
+
+@local_auth_router.get("/internal/contact/{user_id}")
+def get_user_contact(
+    user_id: str,
+    x_internal_token: str | None = Header(default=None, alias="X-Internal-Token"),
+    db: Session = Depends(get_db),
+):
+    if not settings.INTERNAL_SERVICE_TOKEN or x_internal_token != settings.INTERNAL_SERVICE_TOKEN:
+        return _error_response("internal token invalido", 401)
+
+    try:
+        return get_user_contact_by_id(db, user_id=user_id)
     except AuthServiceError as exc:
         return _error_response(exc.message, exc.status_code)

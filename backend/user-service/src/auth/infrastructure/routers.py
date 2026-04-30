@@ -59,7 +59,7 @@ def verify_spotify_connection(user_id: str, db: Session = Depends(get_db)):
         error_msg = str(exc)
         if "429" in error_msg:
             raise HTTPException(status_code=429, detail=error_msg) from exc
-        if "No se encontraron tokens" in error_msg:
+        if "No se encontraron tokens" in error_msg or "Error de Spotify al refrescar el token: 400" in error_msg:
             raise HTTPException(status_code=404, detail=error_msg) from exc
         raise HTTPException(status_code=502, detail=error_msg) from exc
 
@@ -77,7 +77,7 @@ def spotify_now_playing(user_id: str, db: Session = Depends(get_db)):
         error_msg = str(exc)
         if "429" in error_msg:
             raise HTTPException(status_code=429, detail=error_msg) from exc
-        if "No se encontraron tokens" in error_msg:
+        if "No se encontraron tokens" in error_msg or "Error de Spotify al refrescar el token: 400" in error_msg:
             raise HTTPException(status_code=404, detail=error_msg) from exc
         raise HTTPException(status_code=502, detail=error_msg) from exc
 
@@ -120,6 +120,6 @@ def get_token_for_component_b(
         return get_internal_token(db=db, user_id=user_id)
     except ValueError as exc:
         error_msg = str(exc)
-        if "No se encontraron tokens" in error_msg:
+        if "No se encontraron tokens" in error_msg or "Error de Spotify al refrescar el token: 400" in error_msg:
             raise HTTPException(status_code=404, detail=error_msg) from exc
         raise HTTPException(status_code=502, detail=error_msg) from exc
