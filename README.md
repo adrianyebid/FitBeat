@@ -13,7 +13,7 @@
 
 ## Logo
 <!-- Reemplazar con su imagen final -->
-![Logo FitBeat](./images/logo-fitbeat.png)
+![Logo FitBeat](https://github.com/user-attachments/assets/cfa66370-0594-4240-a5f4-f7bdf2c139c3)
 
 ## Description
 FitBeat es una plataforma distribuida orientada al entrenamiento físico con integración musical. El usuario se autentica, conecta su cuenta de Spotify, crea sesiones de entrenamiento y controla la reproducción en tiempo real. El sistema incorpora procesamiento asíncrono de eventos, gamificación y notificaciones, usando microservicios desacoplados y bases de datos por servicio.
