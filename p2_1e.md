@@ -52,13 +52,38 @@ The team-defined functional scope currently includes:
 #### C&C View
 ![C&C View](./images/c&c-view.jpg)
 
-#### Architectural styles and patterns used
-- Microservice-based architecture.
-- Client-server style.
-- API Gateway pattern.
-- Event-driven architecture with message broker.
-- Database-per-service pattern.
-- Hybrid communication model (synchronous REST/WebSocket + asynchronous AMQP).
+#### Architectural styles used
+- Layered architecture:
+  - The system can be organized into four tiers: presentation, communication/orchestration, logic, and data.
+  - Each tier has a clear responsibility boundary and depends on explicit contracts.
+- Client-server style:
+  - Frontends act as clients and backend services expose server endpoints.
+  - Requests are served mainly through HTTP APIs, with WebSocket support for real-time interaction.
+- Microservice-based architecture:
+  - Business capabilities are split into independently deployable services.
+  - Each service owns its domain logic and can evolve with minimal coupling to other services.
+- Distributed architecture:
+  - Components run in separate containers and communicate through network connectors.
+  - The deployment can be distributed across nodes while preserving service contracts.
+
+#### Architectural patterns used
+- 4-tier architecture pattern:
+  - Presentation tier: `frontend/web`, `frontend/cli`.
+  - Communication/orchestration tier: `traefik`, `rabbitmq`.
+  - Logic tier: domain microservices.
+  - Data tier: PostgreSQL databases and CouchDB.
+- API Gateway pattern:
+  - `traefik` centralizes ingress, hides internal topology, and routes requests by URL path prefix.
+  - This reduces frontend coupling to internal service locations.
+- Broker pattern:
+  - `rabbitmq` decouples event producers and consumers.
+  - Asynchronous processing avoids blocking user flows and improves resilience for background workloads.
+- Database-per-service pattern:
+  - Every core service has dedicated persistence boundaries.
+  - This prevents direct shared-schema coupling and supports domain autonomy.
+- Repository pattern (where applicable):
+  - Services encapsulate persistence access behind service-internal data-access modules.
+  - This keeps business logic separated from storage-specific operations.
 
 #### Architectural elements and relations
 
@@ -163,10 +188,18 @@ The team-defined functional scope currently includes:
 - RabbitMQ: `5672:5672`, management UI `15672:15672`.
 
 #### Deployment patterns used
-- Container-oriented deployment.
-- Reverse proxy and path-based API routing.
-- Network segmentation with bridge networks.
-- Dedicated persistence per bounded domain.
+- Container-oriented deployment:
+  - Every major component runs in an isolated container with explicit runtime dependencies.
+  - This enables reproducible local deployment and portable execution environments.
+- Reverse proxy + path-based routing:
+  - `traefik` acts as ingress and forwards requests based on path rules.
+  - External clients do not need direct knowledge of internal container addresses.
+- Network segmentation pattern:
+  - `component_a_network` handles internal communication.
+  - `gateway_network` isolates gateway-facing service exposure.
+- Dedicated storage pattern:
+  - Data services are isolated in dedicated containers per bounded domain.
+  - This supports ownership and independent scaling/evolution decisions.
 
 ### 3. Layered Structure
 
@@ -189,10 +222,18 @@ Dependency rule:
 - Direct cross-layer shortcuts are limited to defined API/message contracts.
 
 #### Layered patterns used
-- N-tier organization (4-tier view).
-- API Gateway centralized entry.
-- Broker-mediated asynchronous flow.
-- Domain-focused service separation.
+- N-tier (4-tier) organization:
+  - Enforces a high-level separation between UI, communication/orchestration, business logic, and data.
+  - Improves maintainability by reducing cross-cutting dependencies.
+- API Gateway as communication boundary:
+  - Concentrates external API access and routing concerns in one component.
+  - Simplifies frontend integration and policy evolution.
+- Broker-mediated asynchronous collaboration:
+  - Event-based interactions are delegated to the messaging tier.
+  - This reduces temporal coupling between producer and consumer services.
+- Domain-oriented service layering:
+  - Logic-tier services focus on distinct responsibilities and coordinate through contracts.
+  - This preserves cohesion and limits impact radius of changes.
 
 ### 4. Decomposition Structure
 
@@ -222,8 +263,18 @@ Dependency rule:
     - Spotify API
 
 #### Decomposition patterns used
-- Functional decomposition by domain responsibility.
-- High cohesion inside services and loose coupling through explicit interfaces.
+- Functional decomposition by business capability:
+  - The system is partitioned into identity, workout/playback, achievements, notifications, and async processing.
+  - Each subsystem owns a bounded part of the platform behavior.
+- Infrastructure decomposition:
+  - Gateway, broker, and persistence are separated from domain services as dedicated infrastructure modules.
+  - This clarifies operational responsibilities and runtime dependencies.
+- Integration decomposition:
+  - Spotify integration is treated as an external subsystem boundary.
+  - External dependencies are isolated behind service interfaces.
+- High cohesion and loose coupling principle:
+  - Internal module responsibilities are focused.
+  - Inter-service dependencies are mediated through REST/WebSocket/AMQP contracts.
 
 ## Prototype
 
