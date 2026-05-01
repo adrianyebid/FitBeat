@@ -324,7 +324,7 @@ services:
 
   # ───────────── Frontend (React + Vite) ─────────────
   frontend:
-    build: ./frontend
+    build: ./frontend/web
     container_name: fitbeat_frontend
     ports:
       - "5173:5173"
@@ -334,7 +334,7 @@ services:
       VITE_ACHIEVEMENTS_API_URL: http://localhost:8090
       VITE_WS_API_URL: ws://localhost:8090
     volumes:
-      - ./frontend:/app
+      - ./frontend/web:/app
       - /app/node_modules
     depends_on:
       component_a:
@@ -346,6 +346,28 @@ services:
     networks:
       - component_a_network
     restart: always
+
+  frontend_cli:
+    build: ./frontend/cli
+    container_name: fitbeat_cli
+    environment:
+      AUTH_API_URL: http://fb_gateway
+      MUSIC_API_URL: http://fb_gateway
+      WS_API_URL: ws://fb_gateway
+      CLI_DEBUG: "false"
+    depends_on:
+      traefik:
+        condition: service_started
+      component_a:
+        condition: service_started
+      music_service:
+        condition: service_started
+    networks:
+      - component_a_network
+    stdin_open: true
+    tty: true
+    profiles:
+      - cli
 
 # ─────────────── Red Interna (Bridge) ─────────────
 networks:

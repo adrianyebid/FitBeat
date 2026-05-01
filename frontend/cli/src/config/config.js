@@ -10,9 +10,9 @@ dotenv.config({ path: join(__dirname, '../../.env') });
 
 export const config = {
   // API URLs
-  authApiUrl: (process.env.AUTH_API_URL || 'http://localhost:8000').replace(/\/$/, ''),
-  musicApiUrl: (process.env.MUSIC_API_URL || 'http://localhost:8081').replace(/\/$/, ''),
-  wsApiUrl: (process.env.WS_API_URL || 'ws://localhost:8081').replace(/\/$/, ''),
+  authApiUrl: (process.env.AUTH_API_URL || 'http://localhost:8090').replace(/\/$/, ''),
+  musicApiUrl: (process.env.MUSIC_API_URL || 'http://localhost:8090').replace(/\/$/, ''),
+  wsApiUrl: (process.env.WS_API_URL || 'ws://localhost:8090').replace(/\/$/, ''),
   
   // CLI settings
   debug: process.env.CLI_DEBUG === 'true',
