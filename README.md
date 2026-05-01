@@ -1,196 +1,267 @@
-# Team
-- **Team Name:** 1e
-- **Team Members:**
-  - Nicolas Felipe Arciniegas Lizarazo
-  - Karen Lorena Guzman Del Rio
-  - Juan David Chacon Muñoz
-  - Adrian Yebid Rincon
-  - Pablo Felipe Sandoval Menjura
-  - Julio Cesar Albadan Sarmiento
+# Project: Prototype 2 - Advanced Architectural Structures
 
-# Software System
-- **Name:** FitBeat
+## Team 1e
 
-## Logo
-<!-- Reemplazar con su imagen final -->
-![Logo FitBeat](https://github.com/user-attachments/assets/cfa66370-0594-4240-a5f4-f7bdf2c139c3)
+### Team Members
+- Nicolas Felipe Arciniegas Lizarazo
+- Karen Lorena Guzman Del Rio
+- Juan David Chacon Muñoz
+- Adrian Yebid Rincon
+- Pablo Felipe Sandoval Menjura
+- Julio Cesar Albadan Sarmiento
 
-## Description
-FitBeat es una plataforma distribuida orientada al entrenamiento físico con integración musical. El usuario se autentica, conecta su cuenta de Spotify, crea sesiones de entrenamiento y controla la reproducción en tiempo real. El sistema incorpora procesamiento asíncrono de eventos, gamificación y notificaciones, usando microservicios desacoplados y bases de datos por servicio.
+## Software System
 
-# Architectural Structures
+### Name
+FitBeat
 
-## 1. Component-and-Connector (C&C) Structure
+### Logo
+![FitBeat Logo](https://github.com/user-attachments/assets/cfa66370-0594-4240-a5f4-f7bdf2c139c3)
 
-### C&C View
-<!-- Reemplazar con su imagen final -->
+### Description
+FitBeat is a distributed fitness platform that synchronizes workout sessions with Spotify playback. A user can sign up or log in, connect a Spotify account, configure music preferences, and start a training session. During the session, playback can be controlled in real time, while business events are emitted and consumed asynchronously for achievements, analytics, and notifications.
+
+The current prototype uses a microservice architecture with dedicated persistence per domain, an API Gateway for entry-point orchestration, and a message broker for asynchronous workflows.
+
+## Prototype 2 Requirements Coverage
+
+### Functional completeness
+The team-defined functional scope currently includes:
+- User registration and authentication.
+- Spotify OAuth connection.
+- Training session creation and playback control.
+- Achievement evaluation and retrieval.
+- Event-driven notification processing.
+
+### Non-functional requirements mapping
+- Distributed architecture: satisfied through independently deployable services.
+- At least two presentation components: satisfied (`frontend/web` and `frontend/cli`).
+- Web frontend with SSR subarchitecture: partially satisfied; current web frontend is React + Vite (CSR-oriented), SSR migration is pending if strict SSR validation is required.
+- At least five logic components: satisfied (`user-service`, `music-service`, `achievements-service`, `notification-service`, `event-processor`).
+- At least one communication/orchestration component: satisfied (`traefik` API Gateway, plus `rabbitmq` for async orchestration).
+- At least four data components including relational and NoSQL: satisfied (multiple PostgreSQL databases + CouchDB).
+- At least one asynchronous processing component: satisfied (`event-processor`, plus async consumers in achievements/notifications).
+- HTTP-based connectors: satisfied (REST APIs through gateway and direct service endpoints).
+- At least five general-purpose programming languages: satisfied (Python, Go, C#, TypeScript/JavaScript, Java).
+- Container-oriented deployment: satisfied (Docker Compose deployment model).
+
+## Architectural Structures
+
+### 1. Component-and-Connector Structure
+
+#### C&C View
 ![C&C View](./images/c&c-view.jpg)
 
-### Description of architectural elements and relations
-- **Presentation components:**
-  - `frontend/web` (React + Vite).
-  - `frontend/cli` (Node.js CLI).
-- **Logic components:**
-  - `user-service` (FastAPI): autenticación, JWT, OAuth Spotify.
-  - `music-service` (Go): sesiones de entrenamiento y control de reproducción.
-  - `achievements-service` (.NET 8): reglas de gamificación y logros.
-  - `notification-service` (Node/TypeScript): envío y consulta de notificaciones.
-  - `event-processor` (Spring Boot): procesamiento de eventos de negocio.
-- **Data components:**
-  - PostgreSQL (`users`).
-  - CouchDB (`music sessions`).
-  - PostgreSQL (`achievements`).
-  - PostgreSQL (`notifications`).
-  - PostgreSQL (`event processor`).
-- **Communication/orchestration component:**
-  - `Traefik` como API Gateway para enrutamiento HTTP/WS.
-- **Async infrastructure:**
-  - `RabbitMQ` para mensajería y desacoplamiento asíncrono.
-- **Relaciones principales:**
-  - Frontend -> Traefik -> Microservicios (HTTP).
-  - Frontend <-> Music Service (WebSocket, vía gateway).
-  - Servicios <-> Bases de datos dedicadas.
-  - Servicios productores/consumidores <-> RabbitMQ.
-  - User/Music Service <-> Spotify API.
+#### Architectural styles and patterns used
+- Microservice-based architecture.
+- Client-server style.
+- API Gateway pattern.
+- Event-driven architecture with message broker.
+- Database-per-service pattern.
+- Hybrid communication model (synchronous REST/WebSocket + asynchronous AMQP).
 
-### Description of architectural styles and patterns used
-- Microservicios.
-- API Gateway.
-- Database per Service.
-- Event-driven architecture (pub/sub con broker).
-- Comunicación híbrida síncrona/asíncrona (HTTP + AMQP).
+#### Architectural elements and relations
 
-## 2. Deployment Structure
+##### Presentation components
+- `frontend/web` (React + Vite):
+  - Main user-facing web interface.
+  - Communicates with backend services through the gateway.
+- `frontend/cli` (Node.js):
+  - Command-line client for API interactions.
+  - Uses the same gateway entry point in container network contexts.
 
-### Deployment View
-<!-- Reemplazar con su imagen final -->
+##### Communication and orchestration components
+- `traefik` (`fb_gateway`):
+  - Central entry point for HTTP and WebSocket traffic.
+  - Routes by path prefix:
+    - `/api/auth`, `/auth`, `/users` -> `component_a` (`user-service`)
+    - `/api/v1` -> `music_service`
+    - `/achievements` -> `achievements_service`
+    - `/notifications` -> `notification_service`
+- `rabbitmq` (`fb_rabbitmq`):
+  - Event broker for asynchronous interactions.
+  - Decouples event producers and consumers.
+
+##### Logic-type components
+- `user-service` (FastAPI, Python):
+  - Authentication, local user management, JWT, Spotify OAuth token management.
+  - Relational persistence in PostgreSQL (`fb_users_db`).
+- `music-service` (Go):
+  - Training session and playback orchestration with Spotify integration.
+  - Document persistence in CouchDB (`fb_music_db`).
+  - Publishes domain events to RabbitMQ.
+- `achievements-service` (.NET 8):
+  - Achievement rules and badge assignment.
+  - Relational persistence in PostgreSQL (`fb_achievements_db`).
+  - Consumes asynchronous events for gamification updates.
+- `notification-service` (TypeScript/Node.js):
+  - Notification generation and persistence.
+  - Email dispatch and user-notification query endpoints.
+  - Relational persistence in PostgreSQL (`fb_notification_db`).
+  - Consumes asynchronous events from RabbitMQ.
+- `event-processor` (Spring Boot, Java):
+  - Asynchronous event processing and metric/stat aggregation.
+  - Relational persistence in PostgreSQL (`fb_event_db`).
+
+##### Data components
+- `fb_users_db` (PostgreSQL): user and auth-related data.
+- `fb_music_db` (CouchDB): workout session documents and music-related records.
+- `fb_achievements_db` (PostgreSQL): achievements and progression data.
+- `fb_notification_db` (PostgreSQL): notification records and delivery outcomes.
+- `fb_event_db` (PostgreSQL): processed-event tracking and derived metrics.
+
+##### External system
+- Spotify API:
+  - OAuth integration (via user service).
+  - Playback/search integration (via music service).
+
+### 2. Deployment Structure
+
+#### Deployment View
 ![Deployment View](./images/deployment-view.jpg)
 
-### Description of architectural elements and relations
-- **Nodos de ejecución principales:**
-  - Host Docker (máquina local).
-  - Contenedores de aplicación e infraestructura.
-  - Servicio externo Spotify API.
-- **Redes Docker:**
-  - `component_a_network`.
-  - `gateway_network`.
-- **Asignación (deployed_in):**
-  - Traefik -> `fb_gateway`.
-  - User Service -> `fb_users_ms`.
-  - Music Service -> `fb_music_ms`.
-  - Achievements Service -> `fb_achievements_ms`.
-  - Notification Service -> `fb_notification_ms`.
-  - Event Processor -> `fb_event_processor`.
-  - Frontend Web -> `fitbeat_frontend`.
-  - Frontend CLI -> `fitbeat_cli`.
-  - Cada base de datos en su contenedor dedicado.
-  - RabbitMQ en `fb_rabbitmq`.
-- **Puertos relevantes:**
-  - Traefik: `8090->80` y dashboard `8088->8080`.
-  - User Service: `8000->8000`.
-  - Music Service: `8081->8081`.
-  - Achievements Service: `8082->8082`.
-  - Notification Service: `8083->8083`.
-  - Event Processor: `8084->8082`.
-  - DBs PostgreSQL internas `5432` con publicación diferenciada.
+#### Architectural elements and relations
+- Deployment model is container-oriented on a Docker host.
+- Main Docker networks:
+  - `component_a_network`: internal service-to-service communication.
+  - `gateway_network`: service exposure for gateway-routed traffic.
+- Core deployment allocation (`deployed_in`):
+  - Gateway logic -> `fb_gateway`.
+  - User logic -> `fb_users_ms`.
+  - Music logic -> `fb_music_ms`.
+  - Achievements logic -> `fb_achievements_ms`.
+  - Notification logic -> `fb_notification_ms`.
+  - Event processing logic -> `fb_event_processor`.
+  - Web presentation -> `fitbeat_frontend`.
+  - CLI presentation -> `fitbeat_cli`.
+  - Persistence components -> dedicated DB containers.
+  - Async transport -> `fb_rabbitmq`.
 
-### Description of architectural patterns used
-- Container-oriented deployment (Docker Compose).
-- Reverse proxy + path-based routing.
-- Aislamiento por red virtual.
-- Separación de persistencia por dominio.
+#### Runtime environments by component
+- `fb_gateway`: Traefik v3.1 runtime.
+- `fb_users_ms`: Python 3.11 + Uvicorn ASGI server.
+- `fb_music_ms`: Go compiled binary on Alpine runtime.
+- `fb_achievements_ms`: .NET 8 ASP.NET Core runtime (`dotnet`).
+- `fb_notification_ms`: Node.js 18 runtime (`node dist/index.js`).
+- `fb_event_processor`: Java 21 runtime (`java -jar app.jar`).
+- `fitbeat_frontend`: Node.js 20 + Vite dev server.
+- `fitbeat_cli`: Node.js 20 runtime.
 
-## 3. Layered Structure
+#### Port exposure summary
+- Gateway: `8090:80`, Dashboard: `8088:8080`.
+- User service: `8000:8000`.
+- Music service: `8081:8081`.
+- Achievements service: `8082:8082`.
+- Notification service: `8083:8083`.
+- Event processor: `8084:8082`.
+- Databases:
+  - `fb_achievements_db`: `5432:5432`
+  - `fb_users_db`: `5433:5432`
+  - `fb_event_db`: `5434:5432`
+  - `fb_notification_db`: `5435:5432`
+  - `fb_music_db`: `5984:5984`
+- RabbitMQ: `5672:5672`, management UI `15672:15672`.
 
-### Layered View
-<!-- Reemplazar con su imagen final -->
-![Layered View](./images/layered-view.jpg)
+#### Deployment patterns used
+- Container-oriented deployment.
+- Reverse proxy and path-based API routing.
+- Network segmentation with bridge networks.
+- Dedicated persistence per bounded domain.
 
-### Description of architectural elements and relations
-- **Layer 1 - Presentation:**
-  - Web UI (React).
-  - CLI UI (Node.js).
-- **Layer 2 - API Gateway / Edge:**
-  - Traefik (entrada única, ruteo y exposición de endpoints).
-- **Layer 3 - Application/Domain Services:**
-  - User, Music, Achievements, Notification, Event Processor.
-- **Layer 4 - Data & Messaging:**
-  - PostgreSQL (múltiples dominios), CouchDB y RabbitMQ.
-- **Regla principal de dependencia:**
-  - Presentation -> Edge -> Services -> Data/Messaging.
-  - Comunicación lateral entre servicios solo cuando está justificada por integración o eventos.
+### 3. Layered Structure
 
-### Description of architectural patterns used
-- Layered architecture aplicada sobre microservicios.
-- Separación de responsabilidades por capa (UI, edge, negocio, persistencia/eventos).
+#### Layered View
+![Layered View](./images/Layered-view.jpg)
 
-## 4. Decomposition Structure
+#### Layer definitions and relations
+- Layer 1 - Presentation:
+  - `frontend/web`, `frontend/cli`.
+- Layer 2 - Entry and Communication:
+  - `traefik` (gateway), `rabbitmq` (async transport).
+- Layer 3 - Application and Domain Logic:
+  - `user-service`, `music-service`, `achievements-service`, `notification-service`, `event-processor`.
+- Layer 4 - Data:
+  - PostgreSQL instances and CouchDB.
 
-### Decomposition View
-<!-- Reemplazar con su imagen final -->
+Dependency rule:
+- Presentation depends on entry/communication layer.
+- Domain services depend on data and asynchronous messaging layers.
+- Direct cross-layer shortcuts are limited to defined API/message contracts.
+
+#### Layered patterns used
+- N-tier organization (4-tier view).
+- API Gateway centralized entry.
+- Broker-mediated asynchronous flow.
+- Domain-focused service separation.
+
+### 4. Decomposition Structure
+
+#### Decomposition View
 ![Decomposition View](./images/decomposition-view.jpg)
 
-### Description of architectural elements and relations
-- **Sistema FitBeat** se descompone en:
-  - **Presentation subsystem**
-    - `frontend/web`
-    - `frontend/cli`
-  - **Identity subsystem**
-    - `user-service`
-  - **Training & Playback subsystem**
-    - `music-service`
-  - **Gamification subsystem**
-    - `achievements-service`
-  - **Communication subsystem**
-    - `notification-service`
-  - **Async Analytics/Processing subsystem**
-    - `event-processor`
-  - **Integration subsystem**
-    - Spotify API integration.
-  - **Infrastructure subsystem**
-    - Traefik, RabbitMQ y bases de datos.
-- **Relación de composición:**
-  - Cada subsistema encapsula su lógica y sus datos, interactuando mediante contratos HTTP/WS o eventos AMQP.
+#### Decomposition of the system
+- `FitBeat System`
+  - `Presentation Subsystem`
+    - Web Frontend (`frontend/web`)
+    - CLI Frontend (`frontend/cli`)
+  - `Identity Subsystem`
+    - User Service (`user-service`)
+  - `Workout and Playback Subsystem`
+    - Music Service (`music-service`)
+  - `Gamification Subsystem`
+    - Achievements Service (`achievements-service`)
+  - `Notification Subsystem`
+    - Notification Service (`notification-service`)
+  - `Async Processing Subsystem`
+    - Event Processor (`event-processor`)
+  - `Infrastructure Subsystem`
+    - API Gateway (`traefik`)
+    - Broker (`rabbitmq`)
+    - Databases (PostgreSQL, CouchDB)
+  - `External Integration Subsystem`
+    - Spotify API
 
-### Description of architectural patterns used
-- Decomposición por dominios funcionales (bounded contexts).
-- Alta cohesión intra-servicio y bajo acoplamiento entre servicios.
+#### Decomposition patterns used
+- Functional decomposition by domain responsibility.
+- High cohesion inside services and loose coupling through explicit interfaces.
 
-# Prototype
+## Prototype
 
-## Instructions to run the prototype locally
-1. Clonar repositorio:
+### Local deployment instructions
+1. Clone the repository:
 ```bash
-git clone <REPO_URL>
+git clone https://github.com/adrianyebid/FitBeat.git
 cd FitBeat
 ```
-2. Crear archivo `.env` con base en `.env.example` y completar credenciales (incluyendo Spotify).
-3. Levantar el sistema:
+2. Create `.env` from `.env.example` and fill required credentials:
+- Spotify credentials (`SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`).
+- Database and messaging environment variables.
+3. Build and run all services:
 ```bash
 docker-compose up --build
 ```
-4. Verificar estado:
+4. Check container status:
 ```bash
 docker-compose ps
 ```
-5. Accesos principales:
-- Frontend web: `http://localhost:5173`
+5. Main access points:
+- Web frontend: `http://localhost:5173`
 - API Gateway: `http://localhost:8090`
 - Traefik dashboard: `http://localhost:8088`
 - RabbitMQ dashboard: `http://localhost:15672`
 
-## Functional flow (high-level)
-1. Registro/login de usuario.
-2. Conexión de cuenta Spotify.
-3. Configuración de entrenamiento y preferencias.
-4. Inicio de sesión de entrenamiento.
-5. Control de reproducción en tiempo real.
-6. Emisión/procesamiento de eventos asíncronos.
-7. Consulta de logros y notificaciones.
+### High-level functional flow
+1. User signs up or logs in.
+2. User connects Spotify account.
+3. User configures workout/music preferences.
+4. User starts training session.
+5. Playback is controlled in real time.
+6. Domain events are emitted and consumed asynchronously.
+7. User checks achievements and notifications.
 
-# Notes for final PDF export
-- Exportar este archivo a PDF como `p2_1e.pdf`.
-- Verificar que las cinco imágenes queden embebidas:
+## Notes
+- Export this file to PDF as `p2_1e.pdf`.
+- Ensure all required images are embedded in the final exported document:
   - Logo
   - C&C View
   - Deployment View
