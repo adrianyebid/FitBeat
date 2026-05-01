@@ -1,0 +1,46 @@
+http:
+  routers:
+    auth:
+      entryPoints:
+        - web
+      rule: "PathPrefix(`/api/auth`) || PathPrefix(`/auth`) || PathPrefix(`/users`)"
+      service: auth-svc
+
+    music:
+      entryPoints:
+        - web
+      rule: "PathPrefix(`/api/v1`)"
+      service: music-svc
+
+    achievements:
+      entryPoints:
+        - web
+      rule: "PathPrefix(`/achievements`)"
+      service: achievements-svc
+
+    notifications:
+      entryPoints:
+        - web
+      rule: "PathPrefix(`/notifications`)"
+      service: notifications-svc
+
+  services:
+    auth-svc:
+      loadBalancer:
+        servers:
+          - url: "http://component_a:8000"
+
+    music-svc:
+      loadBalancer:
+        servers:
+          - url: "http://music_service:8081"
+
+    achievements-svc:
+      loadBalancer:
+        servers:
+          - url: "http://achievements_service:8082"
+
+    notifications-svc:
+      loadBalancer:
+        servers:
+          - url: "http://notification_service:8083"

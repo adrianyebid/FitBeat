@@ -5,6 +5,25 @@
 name: prototype_2
 
 services:
+  traefik:
+    image: traefik:v3.1
+    container_name: fb_gateway
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:80
+    ports:
+      - "8090:80"
+      - "8088:8080"
+    volumes:
+      - ./traefik:/etc/traefik/dynamic:ro
+    networks:
+      - component_a_network
+      - gateway_network
+    restart: always
+
   # ─────────────── Base de Datos Relacional (Componente A) ───────────────
   postgres_db:
     image: postgres:15-alpine
@@ -50,6 +69,12 @@ services:
         condition: service_healthy
     networks:
       - component_a_network
+      - gateway_network
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.component_a.rule=PathPrefix(`/api/auth`) || PathPrefix(`/auth`) || PathPrefix(`/users`)
+      - traefik.http.routers.component_a.entrypoints=web
+      - traefik.http.services.component_a.loadbalancer.server.port=8000
     restart: always
 
   # ───────────── CouchDB (Componente B) ─────────────
@@ -118,7 +143,7 @@ services:
     build: ./backend/event-processor
     container_name: fb_event_processor
     ports:
-      - "8083:8082"
+      - "8084:8082"
     environment:
       EVENT_DB_URL: jdbc:postgresql://event_processor_db:5432/${EVENT_DB_NAME:-event_processor}
       EVENT_DB_USER: ${EVENT_DB_USER:-postgres}
@@ -161,6 +186,12 @@ services:
         condition: service_healthy
     networks:
       - component_a_network
+      - gateway_network
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.music_service.rule=PathPrefix(`/api/v1`)
+      - traefik.http.routers.music_service.entrypoints=web
+      - traefik.http.services.music_service.loadbalancer.server.port=8081
     restart: always
 
   # ───────────── PostgreSQL (Achievements Service) ─────────────
@@ -222,6 +253,12 @@ services:
       start_period: 10s
     networks:
       - component_a_network
+      - gateway_network
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.achievements_service.rule=PathPrefix(`/achievements`)
+      - traefik.http.routers.achievements_service.entrypoints=web
+      - traefik.http.services.achievements_service.loadbalancer.server.port=8082
     restart: always
    
   # ───────────── PostgreSQL (Notification Service) ─────────────
@@ -263,11 +300,11 @@ services:
       NOTIFICATION_MAX_RETRIES: ${NOTIFICATION_MAX_RETRIES:-3}
       NOTIFICATION_RETRY_DELAY_MS: ${NOTIFICATION_RETRY_DELAY_MS:-5000}
       USER_SERVICE_URL: http://component_a:8000
-      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT}
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASS: ${SMTP_PASS}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-fitbeat-internal-token-2026}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-fitbeat1e@gmail.com}
+      SMTP_PASS: ${SMTP_PASS:-jdpexgyshtaeywxf}
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -277,6 +314,12 @@ services:
         condition: service_started
     networks:
       - component_a_network
+      - gateway_network
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.notification_service.rule=PathPrefix(`/notifications`)
+      - traefik.http.routers.notification_service.entrypoints=web
+      - traefik.http.services.notification_service.loadbalancer.server.port=8083
     restart: always
 
   # ───────────── Frontend (React + Vite) ─────────────
@@ -286,10 +329,10 @@ services:
     ports:
       - "5173:5173"
     environment:
-      VITE_AUTH_API_URL: http://localhost:8000
-      VITE_MUSIC_API_URL: http://localhost:8081
-      VITE_ACHIEVEMENTS_API_URL: http://localhost:8082
-      VITE_WS_API_URL: ws://localhost:8081
+      VITE_AUTH_API_URL: http://localhost:8090
+      VITE_MUSIC_API_URL: http://localhost:8090
+      VITE_ACHIEVEMENTS_API_URL: http://localhost:8090
+      VITE_WS_API_URL: ws://localhost:8090
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -307,6 +350,8 @@ services:
 # ─────────────── Red Interna (Bridge) ─────────────
 networks:
   component_a_network:
+    driver: bridge
+  gateway_network:
     driver: bridge
 
 # ─────────────── Volúmenes Persistentes ─────────────
