@@ -1,0 +1,62 @@
+:root {
+  --bg: #0b1220;
+  --panel: #111a2c;
+  --text: #e9f1ff;
+  --muted: #9fb4da;
+  --accent: #00d4a6;
+  --border: #2a3b61;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  background: radial-gradient(circle at 20% 10%, #12305d 0%, var(--bg) 45%);
+  color: var(--text);
+}
+
+.page {
+  min-height: 100vh;
+  padding: 3rem 1.5rem;
+  display: grid;
+  gap: 1rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.card {
+  background: linear-gradient(180deg, #121f37 0%, var(--panel) 100%);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.2rem 1.3rem;
+}
+
+.eyebrow {
+  color: var(--accent);
+  margin: 0 0 0.35rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+h1,
+h2 {
+  margin: 0 0 0.75rem;
+}
+
+p,
+li {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}

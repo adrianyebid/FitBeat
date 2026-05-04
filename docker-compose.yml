@@ -346,6 +346,34 @@ services:
     networks:
       - component_a_network
     restart: always
+    profiles:
+      - legacy-csr
+
+  # ───────────── Frontend Web SSR (Next.js) ─────────────
+  frontend_ssr:
+    build: ./frontend/web-ssr
+    container_name: fitbeat_frontend_ssr
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_GATEWAY_URL: http://localhost:8090
+    depends_on:
+      traefik:
+        condition: service_started
+      component_a:
+        condition: service_started
+      achievements_service:
+        condition: service_healthy
+    networks:
+      - component_a_network
+      - gateway_network
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.frontend_ssr.rule=PathPrefix(`/`)
+      - traefik.http.routers.frontend_ssr.entrypoints=web
+      - traefik.http.routers.frontend_ssr.priority=1
+      - traefik.http.services.frontend_ssr.loadbalancer.server.port=3000
+    restart: always
 
   frontend_cli:
     build: ./frontend/cli

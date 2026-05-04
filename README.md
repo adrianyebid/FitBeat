@@ -36,7 +36,7 @@ The team-defined functional scope currently includes:
 ### Non-functional requirements mapping
 - Distributed architecture: satisfied through independently deployable services.
 - At least two presentation components: satisfied (`frontend/web` and `frontend/cli`).
-- Web frontend with SSR subarchitecture: partially satisfied; current web frontend is React + Vite (CSR-oriented), SSR migration is pending if strict SSR validation is required.
+- Web frontend with SSR subarchitecture: satisfied (`frontend/web-ssr` built with Next.js SSR; legacy CSR frontend remains available under optional profile).
 - At least five logic components: satisfied (`user-service`, `music-service`, `achievements-service`, `notification-service`, `event-processor`).
 - At least one communication/orchestration component: satisfied (`traefik` API Gateway, plus `rabbitmq` for async orchestration).
 - At least four data components including relational and NoSQL: satisfied (multiple PostgreSQL databases + CouchDB).
@@ -88,9 +88,11 @@ The team-defined functional scope currently includes:
 #### Architectural elements and relations
 
 ##### Presentation components
-- `frontend/web` (React + Vite):
-  - Main user-facing web interface.
+  - `frontend/web-ssr` (Next.js SSR):
+  - Main user-facing web interface rendered on the server.
   - Communicates with backend services through the gateway.
+  - `frontend/web` (React + Vite, legacy CSR profile):
+  - Optional compatibility frontend kept for migration safety.
 - `frontend/cli` (Node.js):
   - Command-line client for API interactions.
   - Uses the same gateway entry point in container network contexts.
@@ -157,7 +159,8 @@ The team-defined functional scope currently includes:
   - Achievements logic -> `fb_achievements_ms`.
   - Notification logic -> `fb_notification_ms`.
   - Event processing logic -> `fb_event_processor`.
-  - Web presentation -> `fitbeat_frontend`.
+  - Web presentation SSR -> `fitbeat_frontend_ssr`.
+  - Legacy web presentation (optional) -> `fitbeat_frontend`.
   - CLI presentation -> `fitbeat_cli`.
   - Persistence components -> dedicated DB containers.
   - Async transport -> `fb_rabbitmq`.
@@ -169,7 +172,8 @@ The team-defined functional scope currently includes:
 - `fb_achievements_ms`: .NET 8 ASP.NET Core runtime (`dotnet`).
 - `fb_notification_ms`: Node.js 18 runtime (`node dist/index.js`).
 - `fb_event_processor`: Java 21 runtime (`java -jar app.jar`).
-- `fitbeat_frontend`: Node.js 20 + Vite dev server.
+- `fitbeat_frontend_ssr`: Node.js 20 + Next.js SSR runtime.
+- `fitbeat_frontend`: Node.js 20 + Vite dev server (legacy CSR profile).
 - `fitbeat_cli`: Node.js 20 runtime.
 
 #### Port exposure summary
@@ -179,6 +183,7 @@ The team-defined functional scope currently includes:
 - Achievements service: `8082:8082`.
 - Notification service: `8083:8083`.
 - Event processor: `8084:8082`.
+- Web SSR frontend: `3000:3000`.
 - Databases:
   - `fb_achievements_db`: `5432:5432`
   - `fb_users_db`: `5433:5432`
@@ -243,7 +248,8 @@ Dependency rule:
 #### Decomposition of the system
 - `FitBeat System`
   - `Presentation Subsystem`
-    - Web Frontend (`frontend/web`)
+    - Web Frontend SSR (`frontend/web-ssr`)
+    - Web Frontend Legacy CSR (`frontend/web`, optional)
     - CLI Frontend (`frontend/cli`)
   - `Identity Subsystem`
     - User Service (`user-service`)
