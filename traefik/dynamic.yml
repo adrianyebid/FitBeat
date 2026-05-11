@@ -1,28 +1,56 @@
 http:
   routers:
-    auth:
+    auth-http:
       entryPoints:
         - web
       rule: "PathPrefix(`/api/auth`) || PathPrefix(`/auth`) || PathPrefix(`/users`)"
       service: auth-svc
 
-    music:
+    auth-https:
+      entryPoints:
+        - websecure
+      rule: "PathPrefix(`/api/auth`) || PathPrefix(`/auth`) || PathPrefix(`/users`)"
+      service: auth-svc
+      tls: {}
+
+    music-http:
       entryPoints:
         - web
       rule: "PathPrefix(`/api/v1`)"
       service: music-svc
 
-    achievements:
+    music-https:
+      entryPoints:
+        - websecure
+      rule: "PathPrefix(`/api/v1`)"
+      service: music-svc
+      tls: {}
+
+    achievements-http:
       entryPoints:
         - web
       rule: "PathPrefix(`/achievements`)"
       service: achievements-svc
 
-    notifications:
+    achievements-https:
+      entryPoints:
+        - websecure
+      rule: "PathPrefix(`/achievements`)"
+      service: achievements-svc
+      tls: {}
+
+    notifications-http:
       entryPoints:
         - web
       rule: "PathPrefix(`/notifications`)"
       service: notifications-svc
+
+    notifications-https:
+      entryPoints:
+        - websecure
+      rule: "PathPrefix(`/notifications`)"
+      service: notifications-svc
+      tls: {}
 
   services:
     auth-svc:
@@ -44,3 +72,14 @@ http:
       loadBalancer:
         servers:
           - url: "http://notification_service:8083"
+
+tls:
+  certificates:
+    - certFile: "/etc/traefik/certs/fitbeat-server.crt"
+      keyFile: "/etc/traefik/certs/fitbeat-server.key"
+  options:
+    default:
+      minVersion: VersionTLS12
+      cipherSuites:
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384

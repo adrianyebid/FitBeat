@@ -14,11 +14,14 @@ services:
       - --providers.file.directory=/etc/traefik/dynamic
       - --providers.file.watch=true
       - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443 #Secure Channel
     ports:
       - "8090:80"
       - "8088:8080"
+      - "443:443" #Secure Channel
     volumes:
       - ./traefik:/etc/traefik/dynamic:ro
+      - ./laboratory-5/certs:/etc/traefik/certs:ro
     networks:
       - component_a_network
       - gateway_network
