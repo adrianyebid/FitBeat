@@ -23,7 +23,6 @@ services:
       - ./traefik:/etc/traefik/dynamic:ro
       - ./laboratory-5/certs:/etc/traefik/certs:ro
     networks:
-      - component_a_network
       - gateway_network
     restart: always
 
@@ -47,7 +46,7 @@ services:
       timeout: 3s
       retries: 10
     networks:
-      - component_a_network
+      - users_db_net
     restart: always
 
   # ─────────────── API FastAPI (Componente A) ───────────────
@@ -71,8 +70,9 @@ services:
       postgres_db:
         condition: service_healthy
     networks:
-      - component_a_network
       - gateway_network
+      - users_db_net
+      - services_internal_net
     labels:
       - traefik.enable=true
       - traefik.http.routers.component_a.rule=PathPrefix(`/api/auth`) || PathPrefix(`/auth`) || PathPrefix(`/users`)
@@ -98,7 +98,7 @@ services:
       timeout: 3s
       retries: 20
     networks:
-      - component_a_network
+      - music_db_net
     restart: always
 
   # ───────────── RabbitMQ (Infra asincrona) ─────────────
@@ -117,7 +117,7 @@ services:
       timeout: 5s
       retries: 20
     networks:
-      - component_a_network
+      - messaging_net
     restart: always
 
   # ───────────── PostgreSQL (Event Processor) ─────────────
@@ -138,7 +138,7 @@ services:
       timeout: 3s
       retries: 15
     networks:
-      - component_a_network
+      - events_db_net
     restart: always
 
   # ───────────── Event Processor (Java, async) ─────────────
@@ -166,7 +166,8 @@ services:
       event_processor_db:
         condition: service_healthy
     networks:
-      - component_a_network
+      - messaging_net
+      - events_db_net
     restart: always
 
   # ───────────── Music Service (Componente B) ─────────────
@@ -188,8 +189,9 @@ services:
       rabbitmq:
         condition: service_healthy
     networks:
-      - component_a_network
       - gateway_network
+      - music_db_net
+      - messaging_net
     labels:
       - traefik.enable=true
       - traefik.http.routers.music_service.rule=PathPrefix(`/api/v1`)
@@ -215,7 +217,7 @@ services:
       timeout: 3s
       retries: 10
     networks:
-      - component_a_network
+      - achievements_db_net
     restart: always
 
   # ───────────── Achievements Service (Componente D) ─────────────
@@ -255,15 +257,16 @@ services:
       retries: 10
       start_period: 10s
     networks:
-      - component_a_network
       - gateway_network
+      - achievements_db_net
+      - messaging_net
     labels:
       - traefik.enable=true
       - traefik.http.routers.achievements_service.rule=PathPrefix(`/achievements`)
       - traefik.http.routers.achievements_service.entrypoints=web
       - traefik.http.services.achievements_service.loadbalancer.server.port=8082
     restart: always
-   
+
   # ───────────── PostgreSQL (Notification Service) ─────────────
   notification_service_db:
     image: postgres:15-alpine
@@ -282,7 +285,7 @@ services:
       timeout: 3s
       retries: 15
     networks:
-      - component_a_network
+      - notification_db_net
     restart: always
 
  # ───────────── Notification Service (TypeScript) ─────────────
@@ -316,8 +319,10 @@ services:
       component_a:
         condition: service_started
     networks:
-      - component_a_network
       - gateway_network
+      - notification_db_net
+      - messaging_net
+      - services_internal_net
     labels:
       - traefik.enable=true
       - traefik.http.routers.notification_service.rule=PathPrefix(`/notifications`)
@@ -347,7 +352,7 @@ services:
       achievements_service:
         condition: service_healthy
     networks:
-      - component_a_network
+      - gateway_network
     restart: always
     profiles:
       - legacy-csr
@@ -368,7 +373,6 @@ services:
       achievements_service:
         condition: service_healthy
     networks:
-      - component_a_network
       - gateway_network
     labels:
       - traefik.enable=true
@@ -394,18 +398,41 @@ services:
       music_service:
         condition: service_started
     networks:
-      - component_a_network
+      - gateway_network
     stdin_open: true
     tty: true
     profiles:
       - cli
 
-# ─────────────── Red Interna (Bridge) ─────────────
+# ─────────────── Redes Segmentadas (Network Segmentation Pattern) ─────────────
 networks:
-  component_a_network:
-    driver: bridge
+  # DMZ / entrada pública: Traefik + microservicios expuestos + frontends
   gateway_network:
     driver: bridge
+  # Zona de datos: cada BD aislada con su único servicio propietario
+  users_db_net:
+    driver: bridge
+    internal: true
+  music_db_net:
+    driver: bridge
+    internal: true
+  achievements_db_net:
+    driver: bridge
+    internal: true
+  notification_db_net:
+    driver: bridge
+    internal: true
+  events_db_net:
+    driver: bridge
+    internal: true
+  # Zona de mensajería: RabbitMQ solo visible para sus consumidores/productores
+  messaging_net:
+    driver: bridge
+    internal: true
+  # Canal interno servicio-a-servicio: notification → user-service
+  services_internal_net:
+    driver: bridge
+    internal: true
 
 # ─────────────── Volúmenes Persistentes ─────────────
 volumes:
