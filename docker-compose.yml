@@ -70,14 +70,9 @@ services:
       postgres_db:
         condition: service_healthy
     networks:
-      - gateway_network
+      - api_gateway_net
       - users_db_net
       - services_internal_net
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.component_a.rule=PathPrefix(`/api/auth`) || PathPrefix(`/auth`) || PathPrefix(`/users`)
-      - traefik.http.routers.component_a.entrypoints=web
-      - traefik.http.services.component_a.loadbalancer.server.port=8000
     restart: always
 
   # ───────────── CouchDB (Componente B) ─────────────
@@ -189,14 +184,9 @@ services:
       rabbitmq:
         condition: service_healthy
     networks:
-      - gateway_network
+      - api_gateway_net
       - music_db_net
       - messaging_net
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.music_service.rule=PathPrefix(`/api/v1`)
-      - traefik.http.routers.music_service.entrypoints=web
-      - traefik.http.services.music_service.loadbalancer.server.port=8081
     restart: always
 
   # ───────────── PostgreSQL (Achievements Service) ─────────────
@@ -257,14 +247,9 @@ services:
       retries: 10
       start_period: 10s
     networks:
-      - gateway_network
+      - api_gateway_net
       - achievements_db_net
       - messaging_net
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.achievements_service.rule=PathPrefix(`/achievements`)
-      - traefik.http.routers.achievements_service.entrypoints=web
-      - traefik.http.services.achievements_service.loadbalancer.server.port=8082
     restart: always
 
   # ───────────── PostgreSQL (Notification Service) ─────────────
@@ -319,15 +304,33 @@ services:
       component_a:
         condition: service_started
     networks:
-      - gateway_network
+      - api_gateway_net
       - notification_db_net
       - messaging_net
       - services_internal_net
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.notification_service.rule=PathPrefix(`/notifications`)
-      - traefik.http.routers.notification_service.entrypoints=web
-      - traefik.http.services.notification_service.loadbalancer.server.port=8083
+    restart: always
+
+  # ───────────── API Gateway (KrakenD) ─────────────
+  krakend:
+    image: devopsfaith/krakend:2.7
+    container_name: fb_api_gateway
+    volumes:
+      - ./krakend:/etc/krakend:ro
+    ports:
+      - "8085:8085"
+    command: ["run", "-c", "/etc/krakend/krakend.json"]
+    depends_on:
+      component_a:
+        condition: service_started
+      music_service:
+        condition: service_started
+      achievements_service:
+        condition: service_healthy
+      notification_service:
+        condition: service_started
+    networks:
+      - gateway_network
+      - api_gateway_net
     restart: always
 
   # ───────────── Frontend (React + Vite) ─────────────
@@ -368,10 +371,8 @@ services:
     depends_on:
       traefik:
         condition: service_started
-      component_a:
+      krakend:
         condition: service_started
-      achievements_service:
-        condition: service_healthy
     networks:
       - gateway_network
     labels:
@@ -406,8 +407,13 @@ services:
 
 # ─────────────── Redes Segmentadas (Network Segmentation Pattern) ─────────────
 networks:
-  # DMZ / entrada pública: Traefik + microservicios expuestos + frontends
+  # DMZ / entrada pública: Traefik + KrakenD + frontends
   gateway_network:
+    driver: bridge
+  # Zona API: KrakenD ↔ microservicios.
+  # No es internal para que los servicios puedan salir a internet (Spotify OAuth, etc.)
+  # El aislamiento frente a Traefik se garantiza porque Traefik solo está en gateway_network.
+  api_gateway_net:
     driver: bridge
   # Zona de datos: cada BD aislada con su único servicio propietario
   users_db_net:

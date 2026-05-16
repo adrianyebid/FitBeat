@@ -1,82 +1,42 @@
 http:
   routers:
-    auth-http:
+    # ── API Gateway (todo el tráfico de backend va a KrakenD) ──────────────
+    api-http:
       entryPoints:
         - web
-      rule: "PathPrefix(`/api/auth`) || PathPrefix(`/auth`) || PathPrefix(`/users`)"
-      service: auth-svc
+      rule: >-
+        PathPrefix(`/api`) ||
+        PathPrefix(`/auth`) ||
+        PathPrefix(`/users`) ||
+        PathPrefix(`/achievements`) ||
+        PathPrefix(`/notifications`)
+      service: api-gateway-svc
+      priority: 10
 
-    auth-https:
+    api-https:
       entryPoints:
         - websecure
-      rule: "PathPrefix(`/api/auth`) || PathPrefix(`/auth`) || PathPrefix(`/users`)"
-      service: auth-svc
-      tls: {}
-
-    music-http:
-      entryPoints:
-        - web
-      rule: "PathPrefix(`/api/v1`)"
-      service: music-svc
-
-    music-https:
-      entryPoints:
-        - websecure
-      rule: "PathPrefix(`/api/v1`)"
-      service: music-svc
-      tls: {}
-
-    achievements-http:
-      entryPoints:
-        - web
-      rule: "PathPrefix(`/achievements`)"
-      service: achievements-svc
-
-    achievements-https:
-      entryPoints:
-        - websecure
-      rule: "PathPrefix(`/achievements`)"
-      service: achievements-svc
-      tls: {}
-
-    notifications-http:
-      entryPoints:
-        - web
-      rule: "PathPrefix(`/notifications`)"
-      service: notifications-svc
-
-    notifications-https:
-      entryPoints:
-        - websecure
-      rule: "PathPrefix(`/notifications`)"
-      service: notifications-svc
+      rule: >-
+        PathPrefix(`/api`) ||
+        PathPrefix(`/auth`) ||
+        PathPrefix(`/users`) ||
+        PathPrefix(`/achievements`) ||
+        PathPrefix(`/notifications`)
+      service: api-gateway-svc
+      priority: 10
       tls: {}
 
   services:
-    auth-svc:
+    # KrakenD es el único backend que Traefik conoce para las APIs
+    api-gateway-svc:
       loadBalancer:
         servers:
-          - url: "http://component_a:8000"
-
-    music-svc:
-      loadBalancer:
-        servers:
-          - url: "http://music_service:8081"
-
-    achievements-svc:
-      loadBalancer:
-        servers:
-          - url: "http://achievements_service:8082"
-
-    notifications-svc:
-      loadBalancer:
-        servers:
-          - url: "http://notification_service:8083"
+          - url: "http://krakend:8085"
 
 tls:
   certificates:
     - certFile: "/etc/traefik/certs/fitbeat-server.crt"
-      keyFile: "/etc/traefik/certs/fitbeat-server.key"
+      keyFile:  "/etc/traefik/certs/fitbeat-server.key"
   options:
     default:
       minVersion: VersionTLS12

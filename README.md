@@ -21,7 +21,7 @@ FitBeat
 ### Description
 FitBeat is a distributed fitness platform that synchronizes workout sessions with Spotify playback. A user can sign up or log in, connect a Spotify account, configure music preferences, and start a training session. During the session, playback can be controlled in real time, while business events are emitted and consumed asynchronously for achievements, analytics, and notifications.
 
-The current prototype uses a microservice architecture with dedicated persistence per domain, an API Gateway for entry-point orchestration, and a message broker for asynchronous workflows.
+The current prototype uses a microservice architecture with dedicated persistence per domain, a two-layer gateway stack (Traefik as reverse proxy + KrakenD as API Gateway) for entry-point orchestration, and a message broker for asynchronous workflows.
 
 ## Prototype 2 Requirements Coverage
 
@@ -38,7 +38,7 @@ The team-defined functional scope currently includes:
 - At least two presentation components: satisfied (`frontend/web` and `frontend/cli`).
 - Web frontend with SSR subarchitecture: satisfied (`frontend/web-ssr` built with Next.js SSR; legacy CSR frontend remains available under optional profile).
 - At least five logic components: satisfied (`user-service`, `music-service`, `achievements-service`, `notification-service`, `event-processor`).
-- At least one communication/orchestration component: satisfied (`traefik` API Gateway, plus `rabbitmq` for async orchestration).
+- At least one communication/orchestration component: satisfied (`traefik` as reverse proxy, `krakend` as dedicated API Gateway, plus `rabbitmq` for async orchestration).
 - At least four data components including relational and NoSQL: satisfied (multiple PostgreSQL databases + CouchDB).
 - At least one asynchronous processing component: satisfied (`event-processor`, plus async consumers in achievements/notifications).
 - HTTP-based connectors: satisfied (REST APIs through gateway and direct service endpoints).
@@ -73,8 +73,10 @@ The team-defined functional scope currently includes:
   - Logic tier: domain microservices.
   - Data tier: PostgreSQL databases and CouchDB.
 - API Gateway pattern:
-  - `traefik` centralizes ingress, hides internal topology, and routes requests by URL path prefix.
-  - This reduces frontend coupling to internal service locations.
+  - A two-layer gateway stack separates edge concerns from API orchestration:
+    - `traefik` acts as the reverse proxy and TLS termination point. It receives all inbound traffic and forwards frontend requests directly to `frontend_ssr`, and all API traffic to `krakend`. Traefik has no knowledge of individual microservices.
+    - `krakend` acts as the dedicated API Gateway. It exposes a defined set of endpoints and routes each one to the corresponding backend microservice. It is the only component that can reach the backend services network.
+  - This separation reduces coupling, improves security (backend services are not reachable from the DMZ network), and allows each layer to evolve independently.
 - Broker pattern:
   - `rabbitmq` decouples event producers and consumers.
   - Asynchronous processing avoids blocking user flows and improves resilience for background workloads.
@@ -99,12 +101,22 @@ The team-defined functional scope currently includes:
 
 ##### Communication and orchestration components
 - `traefik` (`fb_gateway`):
-  - Central entry point for HTTP and WebSocket traffic.
+  - Edge reverse proxy and TLS termination. Single public entry point on ports `8090` (HTTP) and `443` (HTTPS).
   - Routes by path prefix:
-    - `/api/auth`, `/auth`, `/users` -> `component_a` (`user-service`)
-    - `/api/v1` -> `music_service`
-    - `/achievements` -> `achievements_service`
-    - `/notifications` -> `notification_service`
+    - `/` → `frontend_ssr` (Next.js SSR frontend).
+    - `/api`, `/auth`, `/users`, `/achievements`, `/notifications` → `krakend` (API Gateway).
+  - Traefik has no direct knowledge of individual microservices; it only knows the API Gateway.
+- `krakend` (`fb_api_gateway`):
+  - Dedicated API Gateway. Receives API traffic from Traefik and routes each endpoint to the corresponding backend microservice.
+  - Exposes 20 explicitly defined endpoints mapped as follows:
+    - `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/refresh`, `GET /api/auth/me` → `user-service`.
+    - `GET /auth/login/{id}`, `GET /auth/callback`, `GET /auth/verify-connection/{id}`, `GET /auth/now-playing/{id}` → `user-service` (Spotify OAuth).
+    - `POST /users`, `GET /users/{id}`, `PUT /users/{id}/music-preferences` → `user-service`.
+    - `GET /api/v1/health`, `POST /api/v1/sessions`, `GET /api/v1/sessions/{id}`, `POST /api/v1/sessions/{id}/finish`, `GET /api/v1/ws` → `music-service` (WebSocket proxied transparently).
+    - `GET /achievements/catalog`, `GET /achievements/user/{id}`, `POST /achievements/evaluate` → `achievements-service`.
+    - `GET /notifications/user/{id}` → `notification-service`.
+  - Operates in `no-op` (transparent proxy) encoding mode: passes headers, body, status codes, and WebSocket upgrades without modification.
+  - Runs on internal port `8085`, reachable from `gateway_network` (via Traefik) and `api_gateway_net` (towards backends).
 - `rabbitmq` (`fb_rabbitmq`):
   - Event broker for asynchronous interactions.
   - Decouples event producers and consumers.
@@ -149,11 +161,15 @@ The team-defined functional scope currently includes:
 
 #### Architectural elements and relations
 - Deployment model is container-oriented on a Docker host.
-- Main Docker networks:
-  - `component_a_network`: internal service-to-service communication.
-  - `gateway_network`: service exposure for gateway-routed traffic.
+- Docker networks (segmented by responsibility zone):
+  - `gateway_network` (public DMZ): `traefik`, `krakend`, `frontend_ssr`, `frontend` (optional), `frontend_cli` (optional).
+  - `api_gateway_net` (internal API zone): `krakend`, `user-service`, `music-service`, `achievements-service`, `notification-service`. Backend microservices are **not** present in `gateway_network`, so Traefik cannot reach them directly.
+  - `users_db_net`, `music_db_net`, `achievements_db_net`, `notification_db_net`, `events_db_net` (isolated data zones): each database network is accessible only by its owning service.
+  - `messaging_net` (broker zone): RabbitMQ visible only to its producers/consumers.
+  - `services_internal_net` (service-to-service): direct channel from `notification-service` to `user-service` for user contact lookup.
 - Core deployment allocation (`deployed_in`):
-  - Gateway logic -> `fb_gateway`.
+  - Reverse proxy logic -> `fb_gateway` (Traefik).
+  - API Gateway logic -> `fb_api_gateway` (KrakenD).
   - User logic -> `fb_users_ms`.
   - Music logic -> `fb_music_ms`.
   - Achievements logic -> `fb_achievements_ms`.
@@ -166,7 +182,8 @@ The team-defined functional scope currently includes:
   - Async transport -> `fb_rabbitmq`.
 
 #### Runtime environments by component
-- `fb_gateway`: Traefik v3.1 runtime.
+- `fb_gateway`: Traefik v3.1 runtime (reverse proxy).
+- `fb_api_gateway`: KrakenD v2.7 runtime (API Gateway).
 - `fb_users_ms`: Python 3.11 + Uvicorn ASGI server.
 - `fb_music_ms`: Go compiled binary on Alpine runtime.
 - `fb_achievements_ms`: .NET 8 ASP.NET Core runtime (`dotnet`).
@@ -177,7 +194,8 @@ The team-defined functional scope currently includes:
 - `fitbeat_cli`: Node.js 20 runtime.
 
 #### Port exposure summary
-- Gateway: `8090:80`, Dashboard: `8088:8080`.
+- Traefik (reverse proxy): `8090:80` (HTTP), `443:443` (HTTPS), Dashboard: `8088:8080`.
+- KrakenD (API Gateway): `8085:8085`.
 - User service: `8000:8000`.
 - Music service: `8081:8081`.
 - Achievements service: `8082:8082`.
@@ -196,12 +214,16 @@ The team-defined functional scope currently includes:
 - Container-oriented deployment:
   - Every major component runs in an isolated container with explicit runtime dependencies.
   - This enables reproducible local deployment and portable execution environments.
-- Reverse proxy + path-based routing:
-  - `traefik` acts as ingress and forwards requests based on path rules.
-  - External clients do not need direct knowledge of internal container addresses.
-- Network segmentation pattern:
-  - `component_a_network` handles internal communication.
-  - `gateway_network` isolates gateway-facing service exposure.
+- Two-layer gateway pattern:
+  - `traefik` acts as edge reverse proxy: TLS termination, path-based routing to either the frontend or the API Gateway. It has no direct connection to backend microservices.
+  - `krakend` acts as dedicated API Gateway: receives API traffic from Traefik, applies endpoint-level routing to the appropriate microservice. It bridges `gateway_network` and `api_gateway_net`.
+  - This separation allows Traefik to be replaced or reconfigured without touching API routing logic, and vice versa.
+- Network segmentation pattern (defense in depth):
+  - `gateway_network` (DMZ): public-facing zone; only Traefik, KrakenD, and frontend containers reside here.
+  - `api_gateway_net`: internal zone; KrakenD and backend microservices. Not reachable from Traefik directly.
+  - Per-service DB networks: each database is isolated with only its owning service as peer.
+  - `messaging_net`: dedicated broker network.
+  - `services_internal_net`: direct service-to-service channel (notification → user).
 - Dedicated storage pattern:
   - Data services are isolated in dedicated containers per bounded domain.
   - This supports ownership and independent scaling/evolution decisions.
@@ -213,9 +235,11 @@ The team-defined functional scope currently includes:
 
 #### Layer definitions and relations
 - Layer 1 - Presentation:
-  - `frontend/web`, `frontend/cli`.
+  - `frontend/web-ssr`, `frontend/web` (optional), `frontend/cli` (optional).
 - Layer 2 - Entry and Communication:
-  - `traefik` (gateway), `rabbitmq` (async transport).
+  - `traefik` (edge reverse proxy): receives external traffic, terminates TLS, routes to frontend or API Gateway.
+  - `krakend` (API Gateway): receives API traffic from Traefik, enforces endpoint contracts, routes to domain services.
+  - `rabbitmq` (async transport): decouples event producers from consumers.
 - Layer 3 - Application and Domain Logic:
   - `user-service`, `music-service`, `achievements-service`, `notification-service`, `event-processor`.
 - Layer 4 - Data:
@@ -230,9 +254,10 @@ Dependency rule:
 - N-tier (4-tier) organization:
   - Enforces a high-level separation between UI, communication/orchestration, business logic, and data.
   - Improves maintainability by reducing cross-cutting dependencies.
-- API Gateway as communication boundary:
-  - Concentrates external API access and routing concerns in one component.
-  - Simplifies frontend integration and policy evolution.
+- Two-layer gateway as communication boundary:
+  - Traefik and KrakenD together form the communication layer, each with a distinct responsibility.
+  - Traefik handles edge concerns (TLS, routing to frontend vs. API); KrakenD handles API concerns (endpoint mapping, backend selection).
+  - This increases separation of concerns within the layer itself and simplifies policy evolution at each level independently.
 - Broker-mediated asynchronous collaboration:
   - Event-based interactions are delegated to the messaging tier.
   - This reduces temporal coupling between producer and consumer services.
@@ -262,7 +287,8 @@ Dependency rule:
   - `Async Processing Subsystem`
     - Event Processor (`event-processor`)
   - `Infrastructure Subsystem`
-    - API Gateway (`traefik`)
+    - Reverse Proxy (`traefik`)
+    - API Gateway (`krakend`)
     - Broker (`rabbitmq`)
     - Databases (PostgreSQL, CouchDB)
   - `External Integration Subsystem`
@@ -302,9 +328,10 @@ docker-compose up --build
 docker-compose ps
 ```
 5. Main access points:
-- Web frontend: `http://localhost:5173`
-- API Gateway: `http://localhost:8090`
+- Web frontend (SSR): `http://localhost:3000`
+- Traefik (edge entry point): `http://localhost:8090`
 - Traefik dashboard: `http://localhost:8088`
+- KrakenD (API Gateway, direct): `http://localhost:8085`
 - RabbitMQ dashboard: `http://localhost:15672`
 
 ### High-level functional flow
