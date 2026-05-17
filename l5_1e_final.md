@@ -34,6 +34,8 @@ The **Secure Channel Pattern** establishes an encrypted communication tunnel bet
 
 ### 2.2. Quality Scenario Addressed
 
+![Secure Channel Pattern Diagram](./images/SecureChannelPattern.jpg)
+
 **Authentication Scenario:**
 
 > "When a user sends their credentials (email and password) from the CLI or the Web to the Fitbeat system to log in, the data must travel encrypted through a secure channel. The system must guarantee **confidentiality** so that no attacker with network access can read credentials in plain text, and **integrity** to ensure the login request is not altered in transit."
@@ -514,6 +516,8 @@ docker exec fb_notification_ms wget -qO- http://component_a:8000/
 
 ### 5.1. Description of the Pattern and Its Purpose
 
+![Secret Token Pattern Diagram](./images/SECRET_TOKEN_PATTERN.jpg)
+
 The **Secret Token** pattern (also known as *Shared Secret*) is a Service-to-Service (S2S) authentication mechanism in which all microservices in an ecosystem share a cryptographic secret injected at deployment time via environment variables. Every internal HTTP request must include this secret in a standardized header; receiving services validate its presence and authenticity before processing any business logic.
 
 This control implements the **Defense in Depth** principle, establishing a second authentication barrier behind the API Gateway. Its application directly mitigates the following attack vectors:
@@ -535,9 +539,9 @@ The secret is defined once in the project's root `.env` file under the variable 
 ```
 .env (root)                    docker-compose.yml                  Container
 ┌──────────────────┐    ┌─────────────────────────────┐    ┌──────────────────┐
-│ FITBEAT_INTERNAL │───▶│ environment:                │───▶│ Environment var  │
+│ FITBEAT_INTERNAL │───▶│ environment:                │───▶│ Environment var │
 │ _SECRET=<value>  │    │   FITBEAT_INTERNAL_SECRET:  │    │ read by          │
-│                  │    │     ${FITBEAT_INTERNAL_..}   │    │ middleware       │
+│                  │    │     ${FITBEAT_INTERNAL_..}  │    │ middleware       │
 └──────────────────┘    └─────────────────────────────┘    └──────────────────┘
 ```
 
@@ -687,7 +691,7 @@ content-type: application/json
 
 The following screenshot demonstrates the execution of both scenarios in real time from an ephemeral container connected to the internal `services_internal_net` network. The difference between the `401 Unauthorized` response (without token) and the `404 Not Found` response (with valid token) is clearly observable:
 
-![S2S Mitigation Evidence — Local Penetration Test](./images/evidencia-shared-secret-s2s.png)
+![S2S Mitigation Evidence — Local Penetration Test](./images/EvidenciaSecretToken.jpg)
 
 *Figure 1: Git Bash terminal showing the local pentest against the `/api/auth/internal/contact/` endpoint of the User Service. Top: anonymous request blocked (401). Bottom: request with valid token authorized (404, reached the database).*
 
