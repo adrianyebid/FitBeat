@@ -1,3 +1,5 @@
+import hmac
+
 from fastapi import APIRouter, Depends, Header, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -106,7 +108,8 @@ def get_user_contact(
     x_internal_token: str | None = Header(default=None, alias="X-Internal-Token"),
     db: Session = Depends(get_db),
 ):
-    if not settings.INTERNAL_SERVICE_TOKEN or x_internal_token != settings.INTERNAL_SERVICE_TOKEN:
+    expected = settings.effective_internal_secret
+    if not expected or not x_internal_token or not hmac.compare_digest(x_internal_token, expected):
         return _error_response("internal token invalido", 401)
 
     try:

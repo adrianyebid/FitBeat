@@ -66,6 +66,7 @@ services:
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
       REDIRECT_URI: ${REDIRECT_URI}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
     depends_on:
       postgres_db:
         condition: service_healthy
@@ -155,6 +156,7 @@ services:
       EVENT_DLQ_NAME: ${EVENT_DLQ_NAME:-fitbeat.event-processor.dlq}
       WEEKLY_SESSIONS_GOAL: ${WEEKLY_SESSIONS_GOAL:-3}
       EVENT_SOURCE: event-processor
+      FITBEAT_INTERNAL_SECRET: ${FITBEAT_INTERNAL_SECRET}
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -178,6 +180,7 @@ services:
       RABBITMQ_URL: "amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/"
       RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
       EVENT_SOURCE: music-service
+      FITBEAT_INTERNAL_SECRET: ${FITBEAT_INTERNAL_SECRET}
     depends_on:
       couchdb:
         condition: service_healthy
@@ -235,6 +238,7 @@ services:
       ACHIEVEMENTS_MAX_RETRIES: ${ACHIEVEMENTS_MAX_RETRIES:-3}
       ACHIEVEMENTS_RETRY_DELAY_MS: ${ACHIEVEMENTS_RETRY_DELAY_MS:-5000}
       ACHIEVEMENTS_DEFAULT_SESSION_MINUTES: ${ACHIEVEMENTS_DEFAULT_SESSION_MINUTES:-30}
+      FITBEAT_INTERNAL_SECRET: ${FITBEAT_INTERNAL_SECRET}
     depends_on:
       achievements_db:
         condition: service_healthy
@@ -291,7 +295,8 @@ services:
       NOTIFICATION_MAX_RETRIES: ${NOTIFICATION_MAX_RETRIES:-3}
       NOTIFICATION_RETRY_DELAY_MS: ${NOTIFICATION_RETRY_DELAY_MS:-5000}
       USER_SERVICE_URL: http://component_a:8000
-      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-fitbeat-internal-token-2026}
+      INTERNAL_SERVICE_TOKEN: ${FITBEAT_INTERNAL_SECRET:-${INTERNAL_SERVICE_TOKEN:-fitbeat-internal-token-2026}}
+      FITBEAT_INTERNAL_SECRET: ${FITBEAT_INTERNAL_SECRET}
       SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-fitbeat1e@gmail.com}

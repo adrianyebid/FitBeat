@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     # App / integration settings
     FRONTEND_APP_URL: str = "http://localhost:5173"
     INTERNAL_SERVICE_TOKEN: str = ""
+    FITBEAT_INTERNAL_SECRET: str = ""
+
+    @property
+    def effective_internal_secret(self) -> str:
+        """Returns FITBEAT_INTERNAL_SECRET with fallback to INTERNAL_SERVICE_TOKEN."""
+        return self.FITBEAT_INTERNAL_SECRET or self.INTERNAL_SERVICE_TOKEN
 
     model_config = SettingsConfigDict(
         env_file=".env",
