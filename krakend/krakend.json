@@ -1,0 +1,171 @@
+{
+  "$schema": "https://www.krakend.io/schema/v2.7/config.json",
+  "version": 3,
+  "name": "FitBeat API Gateway",
+  "port": 8085,
+  "timeout": "10000ms",
+  "cache_ttl": "0s",
+  "output_encoding": "no-op",
+  "endpoints": [
+    {
+      "endpoint": "/api/auth/register",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/api/auth/register", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+    },
+    {
+      "endpoint": "/api/auth/login",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/api/auth/login", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+    },
+    {
+      "endpoint": "/api/auth/refresh",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/api/auth/refresh", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+    },
+    {
+      "endpoint": "/api/auth/me",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/api/auth/me", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+    },
+    {
+      "endpoint": "/auth/login/{user_id}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/auth/login/{user_id}", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+    },
+    {
+      "endpoint": "/auth/callback",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/auth/callback", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+    },
+    {
+      "endpoint": "/auth/verify-connection/{user_id}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/auth/verify-connection/{user_id}", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+    },
+    {
+      "endpoint": "/auth/now-playing/{user_id}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/auth/now-playing/{user_id}", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+    },
+    {
+      "endpoint": "/users",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/users/", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+    },
+    {
+      "endpoint": "/users/{user_id}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/users/{user_id}", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+    },
+    {
+      "endpoint": "/users/{user_id}/music-preferences",
+      "method": "PUT",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/users/{user_id}/music-preferences", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+    },
+    {
+      "endpoint": "/api/v1/health",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/api/v1/health", "host": ["http://music_service:8081"], "encoding": "no-op"}]
+    },
+    {
+      "endpoint": "/api/v1/sessions",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/api/v1/sessions", "host": ["http://music_service:8081"], "encoding": "no-op"}]
+    },
+    {
+      "endpoint": "/api/v1/sessions/{id}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/api/v1/sessions/{id}", "host": ["http://music_service:8081"], "encoding": "no-op"}]
+    },
+    {
+      "endpoint": "/api/v1/sessions/{id}/finish",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/api/v1/sessions/{id}/finish", "host": ["http://music_service:8081"], "encoding": "no-op"}]
+    },
+    {
+      "endpoint": "/api/v1/ws",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/api/v1/ws", "host": ["http://music_service:8081"], "encoding": "no-op"}]
+    },
+    {
+      "endpoint": "/achievements/catalog",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/achievements/catalog", "host": ["http://achievements_service:8082"], "encoding": "no-op"}]
+    },
+    {
+      "endpoint": "/achievements/user/{id}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/achievements/user/{id}", "host": ["http://achievements_service:8082"], "encoding": "no-op"}]
+    },
+    {
+      "endpoint": "/achievements/evaluate",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/achievements/evaluate", "host": ["http://achievements_service:8082"], "encoding": "no-op"}]
+    },
+    {
+      "endpoint": "/notifications/user/{id}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/notifications/user/{id}", "host": ["http://notification_service:8083"], "encoding": "no-op"}]
+    }
+  ]
+}

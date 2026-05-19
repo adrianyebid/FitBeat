@@ -49,6 +49,16 @@ services:
       - users_db_net
     restart: always
 
+  # ─────────────── Spotify Mock (para pruebas de rendimiento) ───────────────
+  spotify_mock:
+    build: ./performance-tests/spotify-mock
+    container_name: fb_spotify_mock
+    ports:
+      - "3001:3000"
+    networks:
+      - api_gateway_net
+    restart: unless-stopped
+
   # ─────────────── API FastAPI (Componente A) ───────────────
   component_a:
     build: ./backend/user-service
@@ -66,18 +76,17 @@ services:
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
       REDIRECT_URI: ${REDIRECT_URI}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      # Set these to point at the mock during performance tests:
+      SPOTIFY_TOKEN_URL: ${SPOTIFY_TOKEN_URL:-https://accounts.spotify.com/api/token}
+      SPOTIFY_ME_URL: ${SPOTIFY_ME_URL:-https://api.spotify.com/v1/me}
+      SPOTIFY_NOW_PLAYING_URL: ${SPOTIFY_NOW_PLAYING_URL:-https://api.spotify.com/v1/me/player/currently-playing}
     depends_on:
       postgres_db:
         condition: service_healthy
     networks:
-      - gateway_network
+      - api_gateway_net
       - users_db_net
       - services_internal_net
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.component_a.rule=PathPrefix(`/api/auth`) || PathPrefix(`/auth`) || PathPrefix(`/users`)
-      - traefik.http.routers.component_a.entrypoints=web
-      - traefik.http.services.component_a.loadbalancer.server.port=8000
     restart: always
 
   # ───────────── CouchDB (Componente B) ─────────────
@@ -183,20 +192,18 @@ services:
       RABBITMQ_URL: "amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/"
       RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
       EVENT_SOURCE: music-service
+      # Set these to point at the mock during performance tests:
+      SPOTIFY_SEARCH_URL: ${SPOTIFY_SEARCH_URL:-https://api.spotify.com/v1/search}
+      SPOTIFY_QUEUE_URL: ${SPOTIFY_QUEUE_URL:-https://api.spotify.com/v1/me/player/queue}
     depends_on:
       couchdb:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
     networks:
-      - gateway_network
+      - api_gateway_net
       - music_db_net
       - messaging_net
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.music_service.rule=PathPrefix(`/api/v1`)
-      - traefik.http.routers.music_service.entrypoints=web
-      - traefik.http.services.music_service.loadbalancer.server.port=8081
     restart: always
 
   # ───────────── PostgreSQL (Achievements Service) ─────────────
@@ -257,14 +264,9 @@ services:
       retries: 10
       start_period: 10s
     networks:
-      - gateway_network
+      - api_gateway_net
       - achievements_db_net
       - messaging_net
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.achievements_service.rule=PathPrefix(`/achievements`)
-      - traefik.http.routers.achievements_service.entrypoints=web
-      - traefik.http.services.achievements_service.loadbalancer.server.port=8082
     restart: always
 
   # ───────────── PostgreSQL (Notification Service) ─────────────
@@ -319,15 +321,33 @@ services:
       component_a:
         condition: service_started
     networks:
-      - gateway_network
+      - api_gateway_net
       - notification_db_net
       - messaging_net
       - services_internal_net
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.notification_service.rule=PathPrefix(`/notifications`)
-      - traefik.http.routers.notification_service.entrypoints=web
-      - traefik.http.services.notification_service.loadbalancer.server.port=8083
+    restart: always
+
+  # ───────────── API Gateway (KrakenD) ─────────────
+  krakend:
+    image: devopsfaith/krakend:2.7
+    container_name: fb_api_gateway
+    volumes:
+      - ./krakend:/etc/krakend:ro
+    ports:
+      - "8085:8085"
+    command: ["run", "-c", "/etc/krakend/krakend.json"]
+    depends_on:
+      component_a:
+        condition: service_started
+      music_service:
+        condition: service_started
+      achievements_service:
+        condition: service_healthy
+      notification_service:
+        condition: service_started
+    networks:
+      - gateway_network
+      - api_gateway_net
     restart: always
 
   # ───────────── Frontend (React + Vite) ─────────────
@@ -368,10 +388,8 @@ services:
     depends_on:
       traefik:
         condition: service_started
-      component_a:
+      krakend:
         condition: service_started
-      achievements_service:
-        condition: service_healthy
     networks:
       - gateway_network
     labels:
@@ -406,8 +424,13 @@ services:
 
 # ─────────────── Redes Segmentadas (Network Segmentation Pattern) ─────────────
 networks:
-  # DMZ / entrada pública: Traefik + microservicios expuestos + frontends
+  # DMZ / entrada pública: Traefik + KrakenD + frontends
   gateway_network:
+    driver: bridge
+  # Zona API: KrakenD ↔ microservicios.
+  # No es internal para que los servicios puedan salir a internet (Spotify OAuth, etc.)
+  # El aislamiento frente a Traefik se garantiza porque Traefik solo está en gateway_network.
+  api_gateway_net:
     driver: bridge
   # Zona de datos: cada BD aislada con su único servicio propietario
   users_db_net:

@@ -9,12 +9,16 @@ from src.auth.infrastructure.models import SpotifyToken
 from src.users.infrastructure.models import User
 
 # ──────────────────────────────────────────────
-# Constantes del flujo OAuth de Spotify
+# URLs del flujo OAuth de Spotify
+# Leídas desde settings para permitir mockear en pruebas:
+#   SPOTIFY_TOKEN_URL=http://spotify_mock:3000/api/token
+#   SPOTIFY_ME_URL=http://spotify_mock:3000/v1/me
+#   SPOTIFY_NOW_PLAYING_URL=http://spotify_mock:3000/v1/me/player/currently-playing
 # ──────────────────────────────────────────────
-SPOTIFY_AUTH_URL = "https://accounts.spotify.com/authorize"
-SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
-SPOTIFY_ME_URL = "https://api.spotify.com/v1/me"
-SPOTIFY_NOW_PLAYING_URL = "https://api.spotify.com/v1/me/player/currently-playing"
+SPOTIFY_AUTH_URL = settings.SPOTIFY_AUTH_URL
+SPOTIFY_TOKEN_URL = settings.SPOTIFY_TOKEN_URL
+SPOTIFY_ME_URL = settings.SPOTIFY_ME_URL
+SPOTIFY_NOW_PLAYING_URL = settings.SPOTIFY_NOW_PLAYING_URL
 SCOPES = (
     "streaming "
     "user-read-email "

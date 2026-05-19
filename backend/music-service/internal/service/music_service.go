@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -16,10 +17,21 @@ import (
 	"github.com/adrianyebid/fitbeat/music-service/internal/repository"
 )
 
-const (
-	spotifySearchURL = "https://api.spotify.com/v1/search"
-	spotifyQueueURL  = "https://api.spotify.com/v1/me/player/queue"
+// Spotify API URLs are read from env so the mock server can be injected:
+//
+//	SPOTIFY_SEARCH_URL=http://spotify_mock:3000/v1/search
+//	SPOTIFY_QUEUE_URL=http://spotify_mock:3000/v1/me/player/queue
+var (
+	spotifySearchURL = envOrDefault("SPOTIFY_SEARCH_URL", "https://api.spotify.com/v1/search")
+	spotifyQueueURL  = envOrDefault("SPOTIFY_QUEUE_URL", "https://api.spotify.com/v1/me/player/queue")
 )
+
+func envOrDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
 
 type CreateSessionInput struct {
 	UserID       string
