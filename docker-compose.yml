@@ -49,6 +49,16 @@ services:
       - users_db_net
     restart: always
 
+  # ─────────────── Spotify Mock (para pruebas de rendimiento) ───────────────
+  spotify_mock:
+    build: ./performance-tests/spotify-mock
+    container_name: fb_spotify_mock
+    ports:
+      - "3001:3000"
+    networks:
+      - api_gateway_net
+    restart: unless-stopped
+
   # ─────────────── API FastAPI (Componente A) ───────────────
   component_a:
     build: ./backend/user-service
@@ -66,6 +76,10 @@ services:
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
       REDIRECT_URI: ${REDIRECT_URI}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      # Set these to point at the mock during performance tests:
+      SPOTIFY_TOKEN_URL: ${SPOTIFY_TOKEN_URL:-https://accounts.spotify.com/api/token}
+      SPOTIFY_ME_URL: ${SPOTIFY_ME_URL:-https://api.spotify.com/v1/me}
+      SPOTIFY_NOW_PLAYING_URL: ${SPOTIFY_NOW_PLAYING_URL:-https://api.spotify.com/v1/me/player/currently-playing}
     depends_on:
       postgres_db:
         condition: service_healthy
@@ -178,6 +192,9 @@ services:
       RABBITMQ_URL: "amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/"
       RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
       EVENT_SOURCE: music-service
+      # Set these to point at the mock during performance tests:
+      SPOTIFY_SEARCH_URL: ${SPOTIFY_SEARCH_URL:-https://api.spotify.com/v1/search}
+      SPOTIFY_QUEUE_URL: ${SPOTIFY_QUEUE_URL:-https://api.spotify.com/v1/me/player/queue}
     depends_on:
       couchdb:
         condition: service_healthy
