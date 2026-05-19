@@ -75,8 +75,8 @@ export default function (data) {
   const ok = check(res, {
     'status is 200': (r) => r.status === 200,
     'response time < 3s': (r) => r.timings.duration < 3000,
-    'has access_token': (r) => {
-      try { return JSON.parse(r.body).access_token !== undefined; }
+    'has accessToken': (r) => {
+      try { return JSON.parse(r.body).accessToken !== undefined; }
       catch (_) { return false; }
     },
   });

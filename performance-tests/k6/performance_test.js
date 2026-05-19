@@ -101,9 +101,9 @@ export default function (data) {
 
   const ok = check(res, {
     'status is 200': (r) => r.status === 200,
-    'has access_token': (r) => {
+    'has accessToken': (r) => {
       try {
-        return JSON.parse(r.body).access_token !== undefined;
+        return JSON.parse(r.body).accessToken !== undefined;
       } catch (_) {
         return false;
       }
