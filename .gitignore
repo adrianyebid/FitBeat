@@ -20,6 +20,7 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+.claude
 
 # Test / coverage artifacts
 coverage/

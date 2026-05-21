@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     LOCAL_AUTH_DEFAULT_AGE: int = 18
 
+    # Spotify API URLs — override with mock for performance/integration tests
+    SPOTIFY_AUTH_URL: str = "https://accounts.spotify.com/authorize"
+    SPOTIFY_TOKEN_URL: str = "https://accounts.spotify.com/api/token"
+    SPOTIFY_ME_URL: str = "https://api.spotify.com/v1/me"
+    SPOTIFY_NOW_PLAYING_URL: str = "https://api.spotify.com/v1/me/player/currently-playing"
+
     # App / integration settings
     FRONTEND_APP_URL: str = "http://localhost:5173"
     INTERNAL_SERVICE_TOKEN: str = ""
