@@ -45,7 +45,7 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/auth/login/{user_id}", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+      "backend": [{"url_pattern": "/auth/login/{user_id}", "host": ["http://component_a:8000"], "encoding": "no-op", "extra_config": {"backend/http/client": {"no_redirect": true}, "github.com/devopsfaith/krakend/http/client": {"no_redirect": true}}}]
     },
     {
       "endpoint": "/auth/callback",
@@ -53,7 +53,7 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/auth/callback", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+      "backend": [{"url_pattern": "/auth/callback", "host": ["http://component_a:8000"], "encoding": "no-op", "extra_config": {"backend/http/client": {"no_redirect": true}, "github.com/devopsfaith/krakend/http/client": {"no_redirect": true}}}]
     },
     {
       "endpoint": "/auth/verify-connection/{user_id}",
@@ -70,6 +70,14 @@
       "input_headers": ["*"],
       "input_query_strings": ["*"],
       "backend": [{"url_pattern": "/auth/now-playing/{user_id}", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+    },
+    {
+      "endpoint": "/auth/internal/token/{user_id}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/auth/internal/token/{user_id}", "host": ["http://component_a:8000"], "encoding": "no-op"}]
     },
     {
       "endpoint": "/users",

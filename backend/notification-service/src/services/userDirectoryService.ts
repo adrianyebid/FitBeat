@@ -6,10 +6,10 @@ type UserContact = {
 
 export async function fetchUserContact(userId: string): Promise<UserContact> {
     const authApiUrl = (process.env.USER_SERVICE_URL || 'http://component_a:8000').replace(/\/$/, '');
-    const internalToken = process.env.INTERNAL_SERVICE_TOKEN || '';
+    const internalToken = process.env.FITBEAT_INTERNAL_SECRET || process.env.INTERNAL_SERVICE_TOKEN || '';
 
     if (!internalToken) {
-        throw new Error('INTERNAL_SERVICE_TOKEN es requerido para consultar contacto de usuarios');
+        throw new Error('FITBEAT_INTERNAL_SECRET es requerido para consultar contacto de usuarios');
     }
 
     const response = await fetch(`${authApiUrl}/api/auth/internal/contact/${encodeURIComponent(userId)}`, {

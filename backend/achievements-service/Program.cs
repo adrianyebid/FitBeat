@@ -46,6 +46,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 app.UseCors("frontend");
+app.UseInternalSecretAuth();
 
 using (var scope = app.Services.CreateScope())
 {

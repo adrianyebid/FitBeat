@@ -4,9 +4,10 @@ import "os"
 
 // Config contiene la configuración del servicio
 type Config struct {
-	Port        string
-	CouchDBAddr string // user:pass@host:port (HTTP REST API de CouchDB)
-	Events      EventsConfig
+	Port           string
+	CouchDBAddr    string // user:pass@host:port (HTTP REST API de CouchDB)
+	InternalSecret string // FITBEAT_INTERNAL_SECRET for S2S auth
+	Events         EventsConfig
 }
 
 type EventsConfig struct {
@@ -46,8 +47,9 @@ func Load() *Config {
 	}
 
 	return &Config{
-		Port:        port,
-		CouchDBAddr: couchAddr,
+		Port:           port,
+		CouchDBAddr:    couchAddr,
+		InternalSecret: os.Getenv("FITBEAT_INTERNAL_SECRET"),
 		Events: EventsConfig{
 			Enabled:      eventsEnabled,
 			RabbitURL:    rabbitURL,
