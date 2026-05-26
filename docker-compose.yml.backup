@@ -59,10 +59,10 @@ services:
       - api_gateway_net
     restart: unless-stopped
 
-  # ─────────────── API FastAPI (Componente A) - Replica 1 ───────────────
-  component_a_1:
+  # ─────────────── API FastAPI (Componente A) ───────────────
+  component_a:
     build: ./backend/user-service
-    container_name: fb_users_ms_1
+    container_name: fb_users_ms
     command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./backend/user-service:/app
@@ -76,58 +76,10 @@ services:
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
       REDIRECT_URI: ${REDIRECT_URI}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      # Set these to point at the mock during performance tests:
       SPOTIFY_TOKEN_URL: ${SPOTIFY_TOKEN_URL:-https://accounts.spotify.com/api/token}
       SPOTIFY_ME_URL: ${SPOTIFY_ME_URL:-https://api.spotify.com/v1/me}
       SPOTIFY_NOW_PLAYING_URL: ${SPOTIFY_NOW_PLAYING_URL:-https://api.spotify.com/v1/me/player/currently-playing}
-      INSTANCE_ID: "user-service-1"
-    depends_on:
-      postgres_db:
-        condition: service_healthy
-    networks:
-      - api_gateway_net
-      - users_db_net
-      - services_internal_net
-    restart: always
-
-  # ─────────────── API FastAPI (Componente A) - Replica 2 ───────────────
-  component_a_2:
-    build: ./backend/user-service
-    container_name: fb_users_ms_2
-    command: uvicorn src.main:app --host 0.0.0.0 --port 8000
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
-      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
-      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
-      REDIRECT_URI: ${REDIRECT_URI}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
-      SPOTIFY_TOKEN_URL: ${SPOTIFY_TOKEN_URL:-https://accounts.spotify.com/api/token}
-      SPOTIFY_ME_URL: ${SPOTIFY_ME_URL:-https://api.spotify.com/v1/me}
-      SPOTIFY_NOW_PLAYING_URL: ${SPOTIFY_NOW_PLAYING_URL:-https://api.spotify.com/v1/me/player/currently-playing}
-      INSTANCE_ID: "user-service-2"
-    depends_on:
-      postgres_db:
-        condition: service_healthy
-    networks:
-      - api_gateway_net
-      - users_db_net
-      - services_internal_net
-    restart: always
-
-  # ─────────────── API FastAPI (Componente A) - Replica 3 ───────────────
-  component_a_3:
-    build: ./backend/user-service
-    container_name: fb_users_ms_3
-    command: uvicorn src.main:app --host 0.0.0.0 --port 8000
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
-      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
-      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
-      REDIRECT_URI: ${REDIRECT_URI}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
-      SPOTIFY_TOKEN_URL: ${SPOTIFY_TOKEN_URL:-https://accounts.spotify.com/api/token}
-      SPOTIFY_ME_URL: ${SPOTIFY_ME_URL:-https://api.spotify.com/v1/me}
-      SPOTIFY_NOW_PLAYING_URL: ${SPOTIFY_NOW_PLAYING_URL:-https://api.spotify.com/v1/me/player/currently-playing}
-      INSTANCE_ID: "user-service-3"
     depends_on:
       postgres_db:
         condition: service_healthy
@@ -198,10 +150,10 @@ services:
       - events_db_net
     restart: always
 
-  # ───────────── Event Processor (Java, async) - Replica 1 ─────────────
-  event_processor_1:
+  # ───────────── Event Processor (Java, async) ─────────────
+  event_processor:
     build: ./backend/event-processor
-    container_name: fb_event_processor_1
+    container_name: fb_event_processor
     ports:
       - "8084:8082"
     environment:
@@ -216,8 +168,7 @@ services:
       EVENT_QUEUE_NAME: ${EVENT_QUEUE_NAME:-fitbeat.event-processor.q}
       EVENT_DLQ_NAME: ${EVENT_DLQ_NAME:-fitbeat.event-processor.dlq}
       WEEKLY_SESSIONS_GOAL: ${WEEKLY_SESSIONS_GOAL:-3}
-      EVENT_SOURCE: event-processor-1
-      INSTANCE_ID: "event-processor-1"
+      EVENT_SOURCE: event-processor
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -228,38 +179,10 @@ services:
       - events_db_net
     restart: always
 
-  # ───────────── Event Processor (Java, async) - Replica 2 ─────────────
-  event_processor_2:
-    build: ./backend/event-processor
-    container_name: fb_event_processor_2
-    environment:
-      EVENT_DB_URL: jdbc:postgresql://event_processor_db:5432/${EVENT_DB_NAME:-event_processor}
-      EVENT_DB_USER: ${EVENT_DB_USER:-postgres}
-      EVENT_DB_PASSWORD: ${EVENT_DB_PASSWORD:-postgres}
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
-      RABBITMQ_PASS: ${RABBITMQ_PASS:-guest}
-      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
-      EVENT_QUEUE_NAME: ${EVENT_QUEUE_NAME:-fitbeat.event-processor.q}
-      EVENT_DLQ_NAME: ${EVENT_DLQ_NAME:-fitbeat.event-processor.dlq}
-      WEEKLY_SESSIONS_GOAL: ${WEEKLY_SESSIONS_GOAL:-3}
-      EVENT_SOURCE: event-processor-2
-      INSTANCE_ID: "event-processor-2"
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-      event_processor_db:
-        condition: service_healthy
-    networks:
-      - messaging_net
-      - events_db_net
-    restart: always
-
-  # ───────────── Music Service (Componente B) - Replica 1 ─────────────
-  music_service_1:
+  # ───────────── Music Service (Componente B) ─────────────
+  music_service:
     build: ./backend/music-service
-    container_name: fb_music_ms_1
+    container_name: fb_music_ms
     ports:
       - "8081:8081"
     environment:
@@ -268,60 +191,10 @@ services:
       EVENTS_ENABLED: "true"
       RABBITMQ_URL: "amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/"
       RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
-      EVENT_SOURCE: music-service-1
+      EVENT_SOURCE: music-service
+      # Set these to point at the mock during performance tests:
       SPOTIFY_SEARCH_URL: ${SPOTIFY_SEARCH_URL:-https://api.spotify.com/v1/search}
       SPOTIFY_QUEUE_URL: ${SPOTIFY_QUEUE_URL:-https://api.spotify.com/v1/me/player/queue}
-      INSTANCE_ID: "music-service-1"
-    depends_on:
-      couchdb:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - api_gateway_net
-      - music_db_net
-      - messaging_net
-    restart: always
-
-  # ───────────── Music Service (Componente B) - Replica 2 ─────────────
-  music_service_2:
-    build: ./backend/music-service
-    container_name: fb_music_ms_2
-    environment:
-      PORT: "8081"
-      COUCHDB_ADDR: "${COUCHDB_USER:-admin}:${COUCHDB_PASSWORD:-secret}@couchdb:5984"
-      EVENTS_ENABLED: "true"
-      RABBITMQ_URL: "amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/"
-      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
-      EVENT_SOURCE: music-service-2
-      SPOTIFY_SEARCH_URL: ${SPOTIFY_SEARCH_URL:-https://api.spotify.com/v1/search}
-      SPOTIFY_QUEUE_URL: ${SPOTIFY_QUEUE_URL:-https://api.spotify.com/v1/me/player/queue}
-      INSTANCE_ID: "music-service-2"
-    depends_on:
-      couchdb:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - api_gateway_net
-      - music_db_net
-      - messaging_net
-    restart: always
-
-  # ───────────── Music Service (Componente B) - Replica 3 ─────────────
-  music_service_3:
-    build: ./backend/music-service
-    container_name: fb_music_ms_3
-    environment:
-      PORT: "8081"
-      COUCHDB_ADDR: "${COUCHDB_USER:-admin}:${COUCHDB_PASSWORD:-secret}@couchdb:5984"
-      EVENTS_ENABLED: "true"
-      RABBITMQ_URL: "amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/"
-      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
-      EVENT_SOURCE: music-service-3
-      SPOTIFY_SEARCH_URL: ${SPOTIFY_SEARCH_URL:-https://api.spotify.com/v1/search}
-      SPOTIFY_QUEUE_URL: ${SPOTIFY_QUEUE_URL:-https://api.spotify.com/v1/me/player/queue}
-      INSTANCE_ID: "music-service-3"
     depends_on:
       couchdb:
         condition: service_healthy
@@ -354,10 +227,10 @@ services:
       - achievements_db_net
     restart: always
 
-  # ───────────── Achievements Service (Componente D) - Replica 1 ─────────────
-  achievements_service_1:
+  # ───────────── Achievements Service (Componente D) ─────────────
+  achievements_service:
     build: ./backend/achievements-service
-    container_name: fb_achievements_ms_1
+    container_name: fb_achievements_ms
     ports:
       - "8082:8082"
     environment:
@@ -379,89 +252,6 @@ services:
       ACHIEVEMENTS_MAX_RETRIES: ${ACHIEVEMENTS_MAX_RETRIES:-3}
       ACHIEVEMENTS_RETRY_DELAY_MS: ${ACHIEVEMENTS_RETRY_DELAY_MS:-5000}
       ACHIEVEMENTS_DEFAULT_SESSION_MINUTES: ${ACHIEVEMENTS_DEFAULT_SESSION_MINUTES:-30}
-      INSTANCE_ID: "achievements-service-1"
-    depends_on:
-      achievements_db:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8082/health >/dev/null"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
-      start_period: 10s
-    networks:
-      - api_gateway_net
-      - achievements_db_net
-      - messaging_net
-    restart: always
-
-  # ───────────── Achievements Service (Componente D) - Replica 2 ─────────────
-  achievements_service_2:
-    build: ./backend/achievements-service
-    container_name: fb_achievements_ms_2
-    environment:
-      ASPNETCORE_URLS: http://0.0.0.0:8082
-      ACHIEVEMENTS_DATABASE_URL: Host=achievements_db;Port=5432;Database=${ACH_POSTGRES_DB};Username=${ACH_POSTGRES_USER};Password=${ACH_POSTGRES_PASSWORD}
-      ACHIEVEMENTS_DB_PATH: ${ACHIEVEMENTS_DB_PATH:-/app/Data/achievements.db}
-      FRONTEND_APP_URL: ${FRONTEND_APP_URL:-http://localhost:5173}
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
-      RABBITMQ_PASS: ${RABBITMQ_PASS:-guest}
-      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
-      RABBITMQ_DLX_EXCHANGE: ${RABBITMQ_DLX_EXCHANGE:-fitbeat.events.dlx}
-      ACHIEVEMENTS_QUEUE_NAME: ${ACHIEVEMENTS_QUEUE_NAME:-fitbeat.achievements.q}
-      ACHIEVEMENTS_RETRY_QUEUE_NAME: ${ACHIEVEMENTS_RETRY_QUEUE_NAME:-fitbeat.achievements.retry.q}
-      ACHIEVEMENTS_DLQ_NAME: ${ACHIEVEMENTS_DLQ_NAME:-fitbeat.achievements.dlq}
-      ACHIEVEMENTS_RETRY_ROUTING_KEY: ${ACHIEVEMENTS_RETRY_ROUTING_KEY:-fitbeat.achievements.retry}
-      ACHIEVEMENTS_DLQ_ROUTING_KEY: ${ACHIEVEMENTS_DLQ_ROUTING_KEY:-fitbeat.achievements.dlq}
-      ACHIEVEMENTS_MAX_RETRIES: ${ACHIEVEMENTS_MAX_RETRIES:-3}
-      ACHIEVEMENTS_RETRY_DELAY_MS: ${ACHIEVEMENTS_RETRY_DELAY_MS:-5000}
-      ACHIEVEMENTS_DEFAULT_SESSION_MINUTES: ${ACHIEVEMENTS_DEFAULT_SESSION_MINUTES:-30}
-      INSTANCE_ID: "achievements-service-2"
-    depends_on:
-      achievements_db:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8082/health >/dev/null"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
-      start_period: 10s
-    networks:
-      - api_gateway_net
-      - achievements_db_net
-      - messaging_net
-    restart: always
-
-  # ───────────── Achievements Service (Componente D) - Replica 3 ─────────────
-  achievements_service_3:
-    build: ./backend/achievements-service
-    container_name: fb_achievements_ms_3
-    environment:
-      ASPNETCORE_URLS: http://0.0.0.0:8082
-      ACHIEVEMENTS_DATABASE_URL: Host=achievements_db;Port=5432;Database=${ACH_POSTGRES_DB};Username=${ACH_POSTGRES_USER};Password=${ACH_POSTGRES_PASSWORD}
-      ACHIEVEMENTS_DB_PATH: ${ACHIEVEMENTS_DB_PATH:-/app/Data/achievements.db}
-      FRONTEND_APP_URL: ${FRONTEND_APP_URL:-http://localhost:5173}
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
-      RABBITMQ_PASS: ${RABBITMQ_PASS:-guest}
-      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
-      RABBITMQ_DLX_EXCHANGE: ${RABBITMQ_DLX_EXCHANGE:-fitbeat.events.dlx}
-      ACHIEVEMENTS_QUEUE_NAME: ${ACHIEVEMENTS_QUEUE_NAME:-fitbeat.achievements.q}
-      ACHIEVEMENTS_RETRY_QUEUE_NAME: ${ACHIEVEMENTS_RETRY_QUEUE_NAME:-fitbeat.achievements.retry.q}
-      ACHIEVEMENTS_DLQ_NAME: ${ACHIEVEMENTS_DLQ_NAME:-fitbeat.achievements.dlq}
-      ACHIEVEMENTS_RETRY_ROUTING_KEY: ${ACHIEVEMENTS_RETRY_ROUTING_KEY:-fitbeat.achievements.retry}
-      ACHIEVEMENTS_DLQ_ROUTING_KEY: ${ACHIEVEMENTS_DLQ_ROUTING_KEY:-fitbeat.achievements.dlq}
-      ACHIEVEMENTS_MAX_RETRIES: ${ACHIEVEMENTS_MAX_RETRIES:-3}
-      ACHIEVEMENTS_RETRY_DELAY_MS: ${ACHIEVEMENTS_RETRY_DELAY_MS:-5000}
-      ACHIEVEMENTS_DEFAULT_SESSION_MINUTES: ${ACHIEVEMENTS_DEFAULT_SESSION_MINUTES:-30}
-      INSTANCE_ID: "achievements-service-3"
     depends_on:
       achievements_db:
         condition: service_healthy
@@ -500,10 +290,10 @@ services:
       - notification_db_net
     restart: always
 
- # ───────────── Notification Service (TypeScript) - Replica 1 ─────────────
-  notification_service_1:
+ # ───────────── Notification Service (TypeScript) ─────────────
+  notification_service:
     build: ./backend/notification-service
-    container_name: fb_notification_ms_1
+    container_name: fb_notification_ms
     ports:
       - "8083:8083"
     environment:
@@ -517,91 +307,18 @@ services:
       NOTIFICATION_DLX_NAME: ${NOTIFICATION_DLX_NAME:-fitbeat.notification.dlx}
       NOTIFICATION_MAX_RETRIES: ${NOTIFICATION_MAX_RETRIES:-3}
       NOTIFICATION_RETRY_DELAY_MS: ${NOTIFICATION_RETRY_DELAY_MS:-5000}
-      USER_SERVICE_URL: http://component_a_1:8000
+      USER_SERVICE_URL: http://component_a:8000
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-fitbeat-internal-token-2026}
       SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-fitbeat1e@gmail.com}
       SMTP_PASS: ${SMTP_PASS:-jdpexgyshtaeywxf}
-      INSTANCE_ID: "notification-service-1"
     depends_on:
       rabbitmq:
         condition: service_healthy
       notification_service_db:
         condition: service_healthy
-      component_a_1:
-        condition: service_started
-    networks:
-      - api_gateway_net
-      - notification_db_net
-      - messaging_net
-      - services_internal_net
-    restart: always
-
- # ───────────── Notification Service (TypeScript) - Replica 2 ─────────────
-  notification_service_2:
-    build: ./backend/notification-service
-    container_name: fb_notification_ms_2
-    environment:
-      PORT: "8083"
-      NOTIFICATION_DB_URL: postgresql://${NOTIFICATION_DB_USER:-postgres}:${NOTIFICATION_DB_PASSWORD:-postgres}@notification_service_db:5432/${NOTIFICATION_DB_NAME:-notification_service}
-      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
-      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
-      NOTIFICATION_QUEUE_NAME: ${NOTIFICATION_QUEUE_NAME:-fitbeat.notification.q}
-      NOTIFICATION_RETRY_QUEUE_NAME: ${NOTIFICATION_RETRY_QUEUE_NAME:-fitbeat.notification.retry.q}
-      NOTIFICATION_DLQ_NAME: ${NOTIFICATION_DLQ_NAME:-fitbeat.notification.dlq}
-      NOTIFICATION_DLX_NAME: ${NOTIFICATION_DLX_NAME:-fitbeat.notification.dlx}
-      NOTIFICATION_MAX_RETRIES: ${NOTIFICATION_MAX_RETRIES:-3}
-      NOTIFICATION_RETRY_DELAY_MS: ${NOTIFICATION_RETRY_DELAY_MS:-5000}
-      USER_SERVICE_URL: http://component_a_1:8000
-      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-fitbeat-internal-token-2026}
-      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USER: ${SMTP_USER:-fitbeat1e@gmail.com}
-      SMTP_PASS: ${SMTP_PASS:-jdpexgyshtaeywxf}
-      INSTANCE_ID: "notification-service-2"
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-      notification_service_db:
-        condition: service_healthy
-      component_a_1:
-        condition: service_started
-    networks:
-      - api_gateway_net
-      - notification_db_net
-      - messaging_net
-      - services_internal_net
-    restart: always
-
- # ───────────── Notification Service (TypeScript) - Replica 3 ─────────────
-  notification_service_3:
-    build: ./backend/notification-service
-    container_name: fb_notification_ms_3
-    environment:
-      PORT: "8083"
-      NOTIFICATION_DB_URL: postgresql://${NOTIFICATION_DB_USER:-postgres}:${NOTIFICATION_DB_PASSWORD:-postgres}@notification_service_db:5432/${NOTIFICATION_DB_NAME:-notification_service}
-      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
-      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
-      NOTIFICATION_QUEUE_NAME: ${NOTIFICATION_QUEUE_NAME:-fitbeat.notification.q}
-      NOTIFICATION_RETRY_QUEUE_NAME: ${NOTIFICATION_RETRY_QUEUE_NAME:-fitbeat.notification.retry.q}
-      NOTIFICATION_DLQ_NAME: ${NOTIFICATION_DLQ_NAME:-fitbeat.notification.dlq}
-      NOTIFICATION_DLX_NAME: ${NOTIFICATION_DLX_NAME:-fitbeat.notification.dlx}
-      NOTIFICATION_MAX_RETRIES: ${NOTIFICATION_MAX_RETRIES:-3}
-      NOTIFICATION_RETRY_DELAY_MS: ${NOTIFICATION_RETRY_DELAY_MS:-5000}
-      USER_SERVICE_URL: http://component_a_1:8000
-      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-fitbeat-internal-token-2026}
-      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USER: ${SMTP_USER:-fitbeat1e@gmail.com}
-      SMTP_PASS: ${SMTP_PASS:-jdpexgyshtaeywxf}
-      INSTANCE_ID: "notification-service-3"
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-      notification_service_db:
-        condition: service_healthy
-      component_a_1:
+      component_a:
         condition: service_started
     networks:
       - api_gateway_net
@@ -620,29 +337,13 @@ services:
       - "8085:8085"
     command: ["run", "-c", "/etc/krakend/krakend.json"]
     depends_on:
-      component_a_1:
+      component_a:
         condition: service_started
-      component_a_2:
+      music_service:
         condition: service_started
-      component_a_3:
-        condition: service_started
-      music_service_1:
-        condition: service_started
-      music_service_2:
-        condition: service_started
-      music_service_3:
-        condition: service_started
-      achievements_service_1:
+      achievements_service:
         condition: service_healthy
-      achievements_service_2:
-        condition: service_healthy
-      achievements_service_3:
-        condition: service_healthy
-      notification_service_1:
-        condition: service_started
-      notification_service_2:
-        condition: service_started
-      notification_service_3:
+      notification_service:
         condition: service_started
     networks:
       - gateway_network
@@ -664,11 +365,11 @@ services:
       - ./frontend/web:/app
       - /app/node_modules
     depends_on:
-      component_a_1:
+      component_a:
         condition: service_started
-      music_service_1:
+      music_service:
         condition: service_started
-      achievements_service_1:
+      achievements_service:
         condition: service_healthy
     networks:
       - gateway_network
@@ -710,9 +411,9 @@ services:
     depends_on:
       traefik:
         condition: service_started
-      component_a_1:
+      component_a:
         condition: service_started
-      music_service_1:
+      music_service:
         condition: service_started
     networks:
       - gateway_network

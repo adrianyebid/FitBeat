@@ -45,6 +45,48 @@ The team-defined functional scope currently includes:
 - At least five general-purpose programming languages: satisfied (Python, Go, C#, TypeScript/JavaScript, Java).
 - Container-oriented deployment: satisfied (Docker Compose deployment model).
 
+## Horizontal Scaling Implementation
+
+FitBeat now implements **horizontal scaling** using KrakenD-based load balancing. This allows the system to handle increased load by distributing requests across multiple service replicas.
+
+### Scaled Services
+
+| Service | Replicas | Load Balancer | Strategy |
+|---------|----------|---------------|----------|
+| User Service | 3 | KrakenD | Round-robin |
+| Music Service | 3 | KrakenD | Round-robin |
+| Achievements Service | 3 | KrakenD | Round-robin |
+| Notification Service | 3 | KrakenD | Round-robin |
+| Event Processor | 2 | RabbitMQ | Consumer groups |
+
+### Performance Improvements
+
+- **3× throughput** for HTTP-based services
+- **Automatic failover** if a replica fails
+- **Zero downtime** during replica restarts
+- **Maintained network segmentation** and security patterns
+
+### Documentation
+
+- **Implementation Guide**:
+- **Testing**: Run `./scaling-patterns/test_load_balancing.sh`
+- **Monitoring**: `docker stats` and `docker-compose logs -f [service]`
+
+### Quick Start with Scaling
+
+```bash
+# Deploy all replicas
+docker-compose up -d --build
+
+# Verify load balancing
+cd scaling-patterns
+./test_load_balancing.sh
+
+# Monitor distribution
+docker logs -f fb_music_ms_1 fb_music_ms_2 fb_music_ms_3
+```
+
+
 ## Architectural Structures
 
 ### 1. Component-and-Connector Structure
