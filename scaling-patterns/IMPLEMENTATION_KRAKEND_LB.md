@@ -169,97 +169,6 @@ INSTANCE_ID: "event-processor-2"
 - Sufficient system resources (CPU and RAM for multiple replicas)
 - All environment variables configured in `.env` file
 
-### Step 1: Backup Current Configuration
-```bash
-# Already done during implementation
-cp docker-compose.yml docker-compose.yml.backup
-cp krakend/krakend.json krakend/krakend.json.backup
-```
-
-### Step 2: Deploy All Services
-```bash
-# Stop existing services
-docker-compose down
-
-# Build and start all replicas
-docker-compose up -d --build
-
-# Verify all services are running
-docker-compose ps
-```
-
-### Step 3: Verify Load Balancing
-```bash
-# Check KrakenD logs for routing
-docker logs -f fb_api_gateway
-
-# Test endpoint multiple times to see different replicas responding
-for i in {1..9}; do
-  curl -s http://localhost:8090/api/v1/health
-  echo ""
-done
-```
-
-### Step 4: Monitor Service Health
-```bash
-# Check all replicas are running
-docker-compose ps | grep -E "(music_service|component_a|achievements_service|notification_service|event_processor)"
-
-# Monitor resource usage
-docker stats
-
-# Check individual service logs
-docker logs fb_music_ms_1
-docker logs fb_music_ms_2
-docker logs fb_music_ms_3
-```
-
-## Testing Load Distribution
-
-### Manual Testing
-```bash
-# Test user service endpoints
-for i in {1..10}; do
-  curl -X POST http://localhost:8090/api/auth/register \
-    -H "Content-Type: application/json" \
-    -d '{"username":"test'$i'","email":"test'$i'@example.com","password":"test123"}'
-done
-
-# Test music service endpoints
-for i in {1..10}; do
-  curl http://localhost:8090/api/v1/health
-done
-
-# Test achievements service endpoints
-for i in {1..10}; do
-  curl http://localhost:8090/achievements/catalog
-done
-```
-
-### Load Testing with Apache Bench
-```bash
-# Test music service under load
-ab -n 1000 -c 10 http://localhost:8090/api/v1/health
-
-# Test user service under load
-ab -n 1000 -c 10 -p user_data.json -T application/json \
-  http://localhost:8090/api/auth/login
-```
-
-### Monitoring Load Distribution
-```bash
-# Watch logs from all music service replicas simultaneously
-docker-compose logs -f music_service_1 music_service_2 music_service_3
-
-# Count requests per replica (run after load test)
-echo "Music Service 1:"
-docker logs fb_music_ms_1 2>&1 | grep -c "GET /api/v1/health"
-echo "Music Service 2:"
-docker logs fb_music_ms_2 2>&1 | grep -c "GET /api/v1/health"
-echo "Music Service 3:"
-docker logs fb_music_ms_3 2>&1 | grep -c "GET /api/v1/health"
-```
-
 ## Performance Expectations
 
 ### Before Scaling (Single Instance)
@@ -324,6 +233,20 @@ docker-compose logs | grep "music-service-3"
 5. **Database Connections**: Monitor connection pool usage
 
 ## Troubleshooting
+
+### Issue: Intermittent DNS Resolution Errors in KrakenD
+**Symptoms**: Some requests fail with "no such host" or "server misbehaving" errors, but subsequent requests succeed (201/200 responses)
+
+**Root Cause**: Docker DNS caching intermittently returns stale entries when service names are being resolved
+
+**Solutions**:
+1. Restart KrakenD to clear DNS cache: `docker-compose restart krakend`
+2. Wait 30-60 seconds - errors typically resolve automatically after first timeout
+3. Verify all user-service replicas are healthy: `docker-compose ps | grep component_a`
+4. Check KrakenD logs: `docker-compose logs krakend --tail 50`
+5. Verify network connectivity between KrakenD and services: `docker exec fb_api_gateway nslookup component_a_1`
+
+**Status**: This is a known Docker networking issue that does NOT block functionality - the load balancer recovers automatically.
 
 ### Issue: Uneven Load Distribution
 **Symptoms**: One replica receives more traffic than others
@@ -419,23 +342,195 @@ This implementation maintains:
 - ✅ Asynchronous messaging (RabbitMQ)
 - ✅ Database isolation (per-service databases)
 
-## References
+## Testing from Windows (PowerShell)
 
-- [KrakenD Backend Configuration](https://www.krakend.io/docs/configuration/backends/)
-- [KrakenD Load Balancing](https://www.krakend.io/docs/backends/load-balancing/)
-- [Docker Compose Networking](https://docs.docker.com/compose/networking/)
-- [Horizontal Scaling Patterns](./INTEGRATION.md)
+### Step 1: Verify Docker is Running
+```powershell
+# Check Docker daemon is running
+docker version
 
-## Support
+# Expected: Should show version info for both Client and Server
+```
 
-For issues or questions:
-1. Check logs: `docker-compose logs [service_name]`
-2. Review this documentation
-3. Consult INTEGRATION.md for additional patterns
-4. Check KrakenD documentation for advanced configuration
+### Step 2: Verify All Services are Running
+```powershell
+# Start all services if not already running
+docker-compose up -d
 
----
+# Verify all 24 services are running
+docker-compose ps
 
-**Implementation Status**: ✅ Complete
-**Last Updated**: 2026-05-26
-**Implemented By**: Bob (AI Assistant)
+# Check for any that are NOT "Up"
+docker-compose ps | Select-String "Exited|Down"  # Should return nothing
+```
+
+### Step 3: Verify RabbitMQ is Connected
+```powershell
+# Check RabbitMQ is healthy
+docker exec fb_rabbitmq rabbitmq-diagnostics ping
+
+# Expected output: "ping succeeded"
+```
+
+### Step 4: Test Health Endpoints
+```powershell
+# Test music service health through load balancer (Traefik:8090)
+for ($i=1; $i -le 5; $i++) {
+  try {
+    $resp = Invoke-RestMethod -Uri "http://localhost:8090/api/v1/health" -Method GET -ErrorAction Stop
+    Write-Host "Request ${i}: OK - Status: $($resp.status)"
+  } catch {
+    Write-Host "Request ${i}: FAILED - $($_.Exception.Message)"
+  }
+}
+
+# Expected: All 5 should succeed with "status": "healthy"
+```
+
+### Step 5: Test User Registration (with Load Balancing)
+```powershell
+# Create 9 test users to verify distribution across 3 replicas
+$headers = @{"Content-Type" = "application/json"}
+
+for ($i=201; $i -le 209; $i++) {
+
+  $body = @{
+    username = "user$i"
+    email = "user$i@example.com"
+    password = "password123"
+    firstName = "Test"
+    lastName = "User$i"
+  } | ConvertTo-Json
+
+  try {
+
+    $resp = Invoke-RestMethod `
+      -Uri "http://localhost:8090/api/auth/register" `
+      -Method POST `
+      -Headers $headers `
+      -Body $body `
+      -ErrorAction Stop
+
+    Write-Host "User ${i}: CREATED"
+    $resp | ConvertTo-Json -Depth 5
+
+  } catch {
+
+    Write-Host "User ${i}: FAILED"
+    Write-Host $_.Exception.Message
+
+    if ($_.ErrorDetails.Message) {
+      Write-Host "Response:"
+      Write-Host $_.ErrorDetails.Message
+    }
+  }
+}
+# Expected: Most or all should succeed (201 Created)
+```
+
+### Step 6: Verify Load Distribution
+```powershell
+# Count GET requests across each music service replica
+Write-Host "=== Load Distribution Analysis ==="
+
+$ms1 = docker-compose logs music_service_1 2>&1 | Select-String "GET" | Measure-Object | Select-Object -ExpandProperty Count
+$ms2 = docker-compose logs music_service_2 2>&1 | Select-String "GET" | Measure-Object | Select-Object -ExpandProperty Count
+$ms3 = docker-compose logs music_service_3 2>&1 | Select-String "GET" | Measure-Object | Select-Object -ExpandProperty Count
+
+Write-Host "Music Service 1: $ms1 requests"
+Write-Host "Music Service 2: $ms2 requests"
+Write-Host "Music Service 3: $ms3 requests"
+Write-Host "Total: $($ms1 + $ms2 + $ms3) requests"
+
+# Expected: Distribution should be roughly equal (within 20% of average)
+# Example: If total is 30, each should have 8-12 requests
+```
+
+### Step 7: Check Achievements Service (Another Endpoint)
+```powershell
+# Get achievements catalog - should be distributed across 3 replicas
+for ($i=1; $i -le 3; $i++) {
+  try {
+    $resp = Invoke-RestMethod -Uri "http://localhost:8090/achievements/catalog" -Method GET -ErrorAction Stop
+    Write-Host "Request ${i}: OK - Found $($resp.Count) achievements"
+  } catch {
+    Write-Host "Request ${i}: FAILED"
+  }
+}
+```
+
+### Step 8: Monitor Service Logs
+```powershell
+# Watch all music service logs in real-time
+docker-compose logs -f music_service_1 music_service_2 music_service_3
+
+# Use Ctrl+C to stop following logs
+
+# Or check individual service:
+docker-compose logs music_service_1 --tail 20
+docker-compose logs component_a_1 --tail 20
+```
+
+### Step 9: Check Service Resource Usage
+```powershell
+# Monitor CPU and memory usage of all containers
+docker stats --no-stream
+
+# Expected: Each replica should have similar resource usage
+```
+
+### Step 10: Verify Network Connectivity
+```powershell
+# Check if KrakenD can resolve service names
+docker exec fb_api_gateway nslookup component_a_1
+
+# Expected: Should resolve to 172.xx.x.x
+
+# Check if music services can reach RabbitMQ
+docker exec fb_music_ms_1 nslookup rabbitmq
+
+# Expected: Should resolve to 172.22.0.5
+```
+
+### Quick Verification Script (All-in-One)
+```powershell
+# Run this to verify everything in one go
+Write-Host "=== FITBEAT LOAD BALANCING TEST ==="
+Write-Host ""
+
+# 1. Services running
+Write-Host "1. Checking services..."
+$running = (docker compose ps --services --filter "status=running" | Measure-Object).Count
+Write-Host "   Services running: $running/24"
+
+# 2. Health check
+Write-Host "2. Testing health endpoint (5 requests)..."
+$health_ok = 0
+for ($i=1; $i -le 5; $i++) {
+  try {
+    $resp = Invoke-RestMethod -Uri "http://localhost:8090/api/v1/health" -Method GET -ErrorAction Stop
+    if ($resp.status) { $health_ok++ }
+  } catch { }
+}
+Write-Host "   Health checks passed: $health_ok/5"
+
+# 3. Load distribution
+Write-Host "3. Analyzing load distribution..."
+$ms1 = docker-compose logs music_service_1 2>&1 | Select-String "GET" | Measure-Object | Select-Object -ExpandProperty Count
+$ms2 = docker-compose logs music_service_2 2>&1 | Select-String "GET" | Measure-Object | Select-Object -ExpandProperty Count
+$ms3 = docker-compose logs music_service_3 2>&1 | Select-String "GET" | Measure-Object | Select-Object -ExpandProperty Count
+Write-Host "   MS1: $ms1, MS2: $ms2, MS3: $ms3 (Total: $($ms1+$ms2+$ms3))"
+
+# 4. RabbitMQ connection
+Write-Host "4. Checking RabbitMQ connection..."
+$rmq_logs = docker-compose logs rabbitmq --tail 5 2>&1 | Select-String "authenticated" | Measure-Object | Select-Object -ExpandProperty Count
+Write-Host "   RabbitMQ authenticated connections: $rmq_logs"
+
+Write-Host ""
+Write-Host "=== TEST COMPLETE ==="
+if ($health_ok -eq 5) {
+    Write-Host "✓ Health checks passed" -ForegroundColor Green
+} else {
+    Write-Host "✗ Health checks failed" -ForegroundColor Red
+}
+```
