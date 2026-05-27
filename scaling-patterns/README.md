@@ -164,13 +164,13 @@ This supports log correlation, debugging, and distribution analysis.
 - Docker and Docker Compose
 - Configured `.env` values
 - Enough CPU and RAM for multiple replicas
-- Optional tools: `curl`, `ab`, `k6`
+- Optional tools: PowerShell, `curl.exe`, `ab`, `k6`
 
 ### Start the scaled environment
 
 From the project root:
 
-```bash
+```powershell
 docker-compose down
 docker-compose up -d --build
 docker-compose ps
@@ -178,32 +178,35 @@ docker-compose ps
 
 ### Verify the deployment
 
-```bash
-docker-compose ps | grep -E "(music_service|component_a|achievements_service|notification_service|event_processor)"
+```powershell
+docker-compose ps
+docker-compose ps | Select-String "music_service|component_a|achievements_service|notification_service|event_processor"
+docker-compose ps | Select-String "Exited|Down"
 ```
 
 Expected result:
 - all intended replicas appear as running
 - KrakenD and Traefik are up
-- no critical service is in `Exited` or `Down` state
+- the final command returns no matches for `Exited` or `Down`
 
 ## Testing Guide
 
 The main automated validation is:
 
-```bash
-cd scaling-patterns
-chmod +x test_load_balancing.sh
-./test_load_balancing.sh
+```powershell
+cd .\scaling-patterns
+bash .\test_load_balancing.sh
 ```
+
+If Git Bash or WSL is not available, use the manual PowerShell procedures below.
 
 Reference:
 - [`test_load_balancing.sh`](./test_load_balancing.sh)
 
 ### 1. Service availability
 
-```bash
-docker ps --format '{{.Names}}'
+```powershell
+docker ps --format "{{.Names}}"
 ```
 
 Expected result:
@@ -211,8 +214,15 @@ Expected result:
 
 ### 2. Health endpoint through the gateway
 
-```bash
-for i in {1..5}; do curl -s http://localhost:8090/api/v1/health; echo; done
+```powershell
+for ($i=1; $i -le 5; $i++) {
+  try {
+    $resp = Invoke-RestMethod -Uri "http://localhost:8090/api/v1/health" -Method GET -ErrorAction Stop
+    Write-Host "Request ${i}: OK - Status: $($resp.status)"
+  } catch {
+    Write-Host "Request ${i}: FAILED - $($_.Exception.Message)"
+  }
+}
 ```
 
 Expected result:
@@ -224,16 +234,24 @@ Expected result:
 
 Generate traffic:
 
-```bash
-for i in {1..30}; do curl -s http://localhost:8090/api/v1/health > /dev/null; done
+```powershell
+for ($i=1; $i -le 30; $i++) {
+  try {
+    Invoke-RestMethod -Uri "http://localhost:8090/api/v1/health" -Method GET -ErrorAction Stop | Out-Null
+  } catch { }
+}
 ```
 
 Inspect logs:
 
-```bash
-docker logs fb_music_ms_1 2>&1 | grep -c "GET /api/v1/health"
-docker logs fb_music_ms_2 2>&1 | grep -c "GET /api/v1/health"
-docker logs fb_music_ms_3 2>&1 | grep -c "GET /api/v1/health"
+```powershell
+$ms1 = (docker logs fb_music_ms_1 2>&1 | Select-String "GET /api/v1/health" | Measure-Object).Count
+$ms2 = (docker logs fb_music_ms_2 2>&1 | Select-String "GET /api/v1/health" | Measure-Object).Count
+$ms3 = (docker logs fb_music_ms_3 2>&1 | Select-String "GET /api/v1/health" | Measure-Object).Count
+
+Write-Host "Music Service 1: $ms1 requests"
+Write-Host "Music Service 2: $ms2 requests"
+Write-Host "Music Service 3: $ms3 requests"
 ```
 
 Expected result:
@@ -242,16 +260,24 @@ Expected result:
 
 ### 4. Verify load distribution on User Service
 
-```bash
-for i in {1..30}; do curl -s http://localhost:8090/api/auth/me > /dev/null; done
+```powershell
+for ($i=1; $i -le 30; $i++) {
+  try {
+    Invoke-WebRequest -Uri "http://localhost:8090/api/auth/me" -Method GET -ErrorAction Stop | Out-Null
+  } catch { }
+}
 ```
 
 Then inspect:
 
-```bash
-docker logs fb_users_ms_1 2>&1 | grep -c "/api/auth/me"
-docker logs fb_users_ms_2 2>&1 | grep -c "/api/auth/me"
-docker logs fb_users_ms_3 2>&1 | grep -c "/api/auth/me"
+```powershell
+$us1 = (docker logs fb_users_ms_1 2>&1 | Select-String "/api/auth/me" | Measure-Object).Count
+$us2 = (docker logs fb_users_ms_2 2>&1 | Select-String "/api/auth/me" | Measure-Object).Count
+$us3 = (docker logs fb_users_ms_3 2>&1 | Select-String "/api/auth/me" | Measure-Object).Count
+
+Write-Host "User Service 1: $us1 requests"
+Write-Host "User Service 2: $us2 requests"
+Write-Host "User Service 3: $us3 requests"
 ```
 
 Expected result:
@@ -261,16 +287,24 @@ Expected result:
 
 ### 5. Verify load distribution on Achievements Service
 
-```bash
-for i in {1..30}; do curl -s http://localhost:8090/achievements/catalog > /dev/null; done
+```powershell
+for ($i=1; $i -le 30; $i++) {
+  try {
+    Invoke-RestMethod -Uri "http://localhost:8090/achievements/catalog" -Method GET -ErrorAction Stop | Out-Null
+  } catch { }
+}
 ```
 
 Then inspect:
 
-```bash
-docker logs fb_achievements_ms_1 2>&1 | grep -c "/achievements/catalog"
-docker logs fb_achievements_ms_2 2>&1 | grep -c "/achievements/catalog"
-docker logs fb_achievements_ms_3 2>&1 | grep -c "/achievements/catalog"
+```powershell
+$as1 = (docker logs fb_achievements_ms_1 2>&1 | Select-String "/achievements/catalog" | Measure-Object).Count
+$as2 = (docker logs fb_achievements_ms_2 2>&1 | Select-String "/achievements/catalog" | Measure-Object).Count
+$as3 = (docker logs fb_achievements_ms_3 2>&1 | Select-String "/achievements/catalog" | Measure-Object).Count
+
+Write-Host "Achievements Service 1: $as1 requests"
+Write-Host "Achievements Service 2: $as2 requests"
+Write-Host "Achievements Service 3: $as3 requests"
 ```
 
 Expected result:
@@ -279,8 +313,8 @@ Expected result:
 
 ### 6. Verify KrakenD configuration at runtime
 
-```bash
-docker exec fb_api_gateway cat /etc/krakend/krakend.json | grep -E "music_service_1|component_a_1|achievements_service_1"
+```powershell
+docker exec fb_api_gateway sh -c "cat /etc/krakend/krakend.json" | Select-String "music_service_1|component_a_1|achievements_service_1"
 ```
 
 Expected result:
@@ -288,7 +322,7 @@ Expected result:
 
 ### 7. Monitor resource usage
 
-```bash
+```powershell
 docker stats --no-stream
 ```
 
@@ -300,19 +334,30 @@ Expected result:
 
 Stop one replica:
 
-```bash
+```powershell
 docker-compose stop music_service_2
 ```
 
 Send requests:
 
-```bash
-for i in {1..10}; do curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8090/api/v1/health; done
+```powershell
+for ($i=1; $i -le 10; $i++) {
+  try {
+    $response = Invoke-WebRequest -Uri "http://localhost:8090/api/v1/health" -Method GET -ErrorAction Stop
+    Write-Host $response.StatusCode
+  } catch {
+    if ($_.Exception.Response) {
+      Write-Host $_.Exception.Response.StatusCode.value__
+    } else {
+      Write-Host "FAILED"
+    }
+  }
+}
 ```
 
 Restart the replica:
 
-```bash
+```powershell
 docker-compose start music_service_2
 ```
 
@@ -330,9 +375,9 @@ ab -n 300 -c 10 http://localhost:8090/api/v1/health
 
 Using k6:
 
-```bash
-cd performance-tests/k6
-k6 run performance_test.js
+```powershell
+cd .\performance-tests\k6
+k6 run .\performance_test.js
 ```
 
 Expected result:
@@ -362,7 +407,7 @@ Actual results depend on:
 
 ### Useful commands
 
-```bash
+```powershell
 docker-compose logs -f music_service_1 music_service_2 music_service_3
 docker-compose logs krakend --tail 50
 docker exec fb_api_gateway nslookup component_a_1
@@ -375,7 +420,7 @@ docker stats
 - verify all replicas are running
 - confirm KrakenD host arrays include every replica
 - restart KrakenD if needed:
-  ```bash
+  ```powershell
   docker-compose restart krakend
   ```
 
@@ -383,9 +428,9 @@ docker stats
 Symptoms may include intermittent `no such host` or temporary upstream failures.
 
 Recommended actions:
-```bash
+```powershell
 docker-compose restart krakend
-docker-compose ps | grep component_a
+docker-compose ps | Select-String "component_a"
 docker-compose logs krakend --tail 50
 docker exec fb_api_gateway nslookup component_a_1
 ```
@@ -409,10 +454,10 @@ That comparison is preserved in the Nginx demo under [`docker-compose-scaling.ym
 
 If needed, restore the original single-instance configuration:
 
-```bash
+```powershell
 docker-compose down
-cp docker-compose.yml.backup docker-compose.yml
-cp krakend/krakend.json.backup krakend/krakend.json
+Copy-Item .\docker-compose.yml.backup .\docker-compose.yml -Force
+Copy-Item .\krakend\krakend.json.backup .\krakend\krakend.json -Force
 docker-compose up -d
 ```
 
