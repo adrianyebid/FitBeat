@@ -210,7 +210,7 @@ Backend services may also use the orchestration tier for asynchronous event publ
 ### 4. Decomposition Structure
 
 #### Decomposition View
-![Decomposition View](./images/p3/decomposition-view.jpg)
+![Decomposition View](./images/p3/decomposition-view.png)
 
 #### Description of architectural elements and relations
 
@@ -273,58 +273,94 @@ Backend services may also use the orchestration tier for asynchronous event publ
 #### Security scenarios
 
 ##### Scenario 1 - Secure Channel Pattern
-![Secure Channel Pattern](./images/p3/SecureChannelPattern.jpg)
+![Secure Channel Pattern](./images/p3/SecureChannelPattern.png)
 
-| Element | Description |
-|---|---|
-| Source | Legitimate user using the web frontend or CLI, with a potential attacker listening on the network. |
-| Stimulus | The user sends credentials or tokens during login, registration, or authenticated requests. |
-| Artifact | External connector between client applications and the public FitBeat entry point. |
-| Environment | Normal operation through Traefik using HTTPS on port `443`. |
-| Response | Traefik terminates TLS 1.2+ using FitBeat certificates and forwards the request internally after the secure channel is established. |
-| Response measure | Credentials and tokens are not readable in transit; packet capture shows TLS handshake/encrypted payload instead of plain JSON credentials. |
+- **Weakness:**  
+  The HTTP protocol transmits data in plain text by design (RFC 2616). Web and CLI clients send credentials (email and password) and JWT authentication tokens to the system without any native encryption mechanism at the transport layer. This is an inherent characteristic of the protocol rather than a system misconfiguration.
+
+- **Vulnerability:**  
+  This weakness is exposed because clients connect from uncontrolled public networks (e.g., coffee shop Wi-Fi, mobile networks) where traffic can be intercepted by third parties. Traefik's port 8090 accepts HTTP traffic without mandatory HTTPS redirection, allowing login requests containing plaintext credentials to reach the system.
+
+- **Risk:**  
+  Confidentiality breach: access credentials (email and password) and JWT tokens transmitted in plain text may be captured by an attacker located on the same network. This could enable user impersonation and unauthorized access to workout data and the linked Spotify account.
+
+- **Threat:**  
+  A malicious actor positioned on the same network (public Wi-Fi, compromised ISP) or with access to an intermediate network node may intercept traffic between the client and the FitBeat gateway using passive sniffing techniques or active interception attacks.
+
+- **Attack:**  
+  **Man-in-the-Middle (MitM)** — the attacker intercepts client-gateway communications and captures credentials and sensitive data in transit. By obtaining a JWT token, the attacker can reuse it to impersonate the legitimate user's session without knowing the user's password.
+
+- **Countermeasure:**  
+  **Secure Channel Pattern** — implementation of TLS 1.2+ in Traefik (fb_gateway) using FitBeat-managed certificates. Traefik terminates the secure channel at the edge (port 443), performs TLS Offloading (decryption at the boundary), and forwards requests internally to KrakenD through the private Docker network (`gateway_network`). As a result, 100% of traffic containing credentials or authentication tokens is encrypted between the client and the system.
 
 Description: this scenario protects confidentiality and integrity for sensitive user traffic. It comes from the laboratory evidence where HTTP on port `8090` exposed login payloads in clear text, while HTTPS on port `443` encrypted the same information.
 
 ##### Scenario 2 - Reverse Proxy Pattern
-![Reverse Proxy Pattern](./images/p3/reverseproxypattern.jpg)
+![Reverse Proxy Pattern](./images/p3/reverseproxypattern.png)
 
-| Element | Description |
-|---|---|
-| Source | External attacker with knowledge of internal service route names. |
-| Stimulus | The attacker attempts to call internal or non-public routes through the public gateway. |
-| Artifact | Internal backend endpoints and service topology. |
-| Environment | Normal operation with Traefik in front of KrakenD. |
-| Response | Traefik forwards only allowed API path prefixes to KrakenD; KrakenD responds only for endpoints defined in `krakend.json`. |
-| Response measure | Non-whitelisted routes return rejection such as `404 Not Found`, and no internal host, port, database, or service topology is revealed. |
+- **Weakness:**  
+  Backend microservices (`user-service`, `music-service`, `achievements-service`, and `notification-service`) expose their HTTP endpoints internally using predictable routes and without additional network-level authentication mechanisms. By design, each service assumes that only the authorized gateway can reach it, creating an implicit dependency on proper routing isolation.
+
+- **Vulnerability:**  
+  If an attacker discovers or infers the internal hostnames of the services (for example, through verbose error messages, exposed configurations, or network reconnaissance), they may attempt to access endpoints that are not published in KrakenD’s API contract. Since each service lacks its own authentication mechanism, protection depends entirely on the routing layers provided by Traefik and KrakenD.
+
+- **Risk:**  
+  Exposure of the internal topology and unauthorized access to private endpoints. An attacker who bypasses the proxy layer could invoke internal administration routes, detailed health-check endpoints, or functionality not exposed through the public API contract, potentially obtaining sensitive information or performing unauthorized operations.
+
+- **Threat:**  
+  An external actor with partial knowledge of the system’s internal topology, or an attacker who compromises a component within the `gateway_network`, may attempt to send requests directly to backend microservices, bypassing Traefik’s routing policies and KrakenD’s endpoint whitelist.
+
+- **Attack:**  
+  **Route Bypass / Direct Service Access** — the attacker crafts HTTP requests targeting internal service names directly (e.g., `component_a:8000`) or routes not defined in `krakend.json`, attempting to access non-public functionality or diagnostic information about the system.
+
+- **Countermeasure:**  
+  **Reverse Proxy Pattern** — Traefik acts as the single public entry point and only exposes KrakenD and the SSR frontend. Backend microservice names and ports are not accessible from outside the private infrastructure. KrakenD enforces a strict whitelist of endpoints defined in `krakend.json`, rejecting any undeclared route with **HTTP 404 Not Found** while revealing no information about the internal topology or existing services.
 
 Description: Traefik is a pure reverse proxy at the edge. It knows KrakenD and the SSR frontend, but it does not know the addresses of backend microservices. KrakenD then applies the API contract whitelist.
 
 ##### Scenario 3 - Network Segmentation Pattern
-![Network Segmentation Pattern](./images/p3/networksegmentationpattern.jpg)
+![Network Segmentation Pattern](./images/p3/networksegmentationpattern.png)
 
-| Element | Description |
-|---|---|
-| Source | Attacker who compromises a container such as `notification-service` or attempts lateral movement from the reverse proxy. |
-| Stimulus | The attacker tries to reach unrelated services or databases directly. |
-| Artifact | Docker networks, backend microservices, databases, and RabbitMQ. |
-| Environment | Normal operation with segmented networks and service-specific memberships. |
-| Response | Docker networking prevents name resolution and TCP connectivity unless both components share an explicit network. |
-| Response measure | A compromised component cannot reach unrelated databases or services; for example, Traefik cannot resolve `component_a`, and `notification-service` cannot reach the users database. |
+- **Weakness:**  
+  In a microservices architecture with multiple services and containerized databases, communication between components is necessarily extensive. Without explicit network controls, all containers running on the same Docker host could potentially resolve the names of other services and establish TCP connections, creating a broad lateral attack surface once any container is compromised.
+
+- **Vulnerability:**  
+  This vulnerability becomes evident when a compromised container (for example, a `notification-service` instance exploited through a vulnerable npm dependency) has network visibility to components it should not be able to reach, such as the user database (`fb_users_db`), the messaging broker (`fb_rabbitmq`), or internal services belonging to other domains. Without network segmentation, lateral movement is technically possible.
+
+- **Risk:**  
+  **Post-compromise lateral movement:** if an attacker gains code execution within any container in the system, they can explore and attack other services and databases accessible from that container, amplifying the impact of a single compromise into multiple databases, Spotify accounts, or the event broker.
+
+- **Threat:**  
+  An attacker who compromises a container (through an application vulnerability, dependency vulnerability, or compromised base image) may attempt internal network reconnaissance and lateral movement toward higher-value assets such as user databases or the RabbitMQ broker in order to exfiltrate data or disrupt system operations.
+
+- **Attack:**  
+  **Lateral Movement / Container Pivoting** — the attacker uses the compromised container as a pivot point to perform internal network scans, exploit accessible database services, or inject malicious messages into the event broker, aiming to compromise data belonging to other domains of the system.
+
+- **Countermeasure:**  
+  **Network Segmentation Pattern** — Docker networks divide the architecture into independent trust zones: `gateway_network` (public DMZ), `api_gateway_net` (internal API zone), dedicated database networks per service (`users_db_net`, `music_db_net`, etc.), `messaging_net` (messaging zone), and `services_internal_net` (explicit service-to-service communication channel). Each container is connected only to the networks required for its role. For example, Traefik cannot resolve `component_a`, and `notification-service` cannot directly access `fb_users_db`, thereby limiting the blast radius of a potential compromise.
 
 Description: this pattern limits the blast radius of a compromise. The system is divided into `gateway_network`, `api_gateway_net`, service-owned database networks, `messaging_net`, and `services_internal_net`.
 
 ##### Scenario 4 - Secret Token Pattern for S2S communication
-![Secret Token Pattern](./images/p3/SECRET_TOKEN_PATTERN.jpg)
+![Secret Token Pattern](./images/p3/SECRET_TOKEN_PATTERN.png)
 
-| Element | Description |
-|---|---|
-| Source | Unauthorized internal actor, compromised container, or service without the internal secret. |
-| Stimulus | The actor invokes an internal endpoint such as `/api/auth/internal/contact/{user_id}` without `X-Internal-Token`. |
-| Artifact | Internal service-to-service endpoints in backend microservices. |
-| Environment | Normal operation inside Docker internal networks. |
-| Response | Middleware validates `X-Internal-Token` using timing-safe comparison and rejects missing or invalid tokens before business logic executes. |
-| Response measure | Unauthorized calls return `401 Unauthorized`; authorized calls with the valid token pass middleware and reach business logic. |
+- **Weakness:**  
+  Internal service-to-service (S2S) endpoints, such as `/api/auth/internal/contact/{user_id}` in `user-service`, must remain accessible to legitimate system services (e.g., `notification-service`) while being protected from public access. Network location within Docker's internal infrastructure is not a reliable proof of identity, as any compromised container connected to `services_internal_net` could potentially invoke these endpoints.
+
+- **Vulnerability:**  
+  Docker's internal network (`services_internal_net`) provides connectivity but does not inherently provide authentication. As a result, a compromised container or malicious process with access to the network could invoke internal `user-service` endpoints without presenting credentials, gaining access to user contact information required for notification delivery.
+
+- **Risk:**  
+  Unauthorized access to user contact data from a non-legitimate internal service. An attacker controlling a container within the internal network could repeatedly invoke internal `user-service` endpoints to extract email addresses and other personal information for all users without compromising the public JWT authentication layer.
+
+- **Threat:**  
+  A malicious actor with access to `services_internal_net`, either through the compromise of an existing container or by deploying a rogue container into the network, may attempt direct calls to internal `user-service` endpoints to extract sensitive contact information or perform privileged operations not intended for public consumption.
+
+- **Attack:**  
+  **Unauthorized Internal API Access** — The attacker sends direct HTTP requests to `/api/auth/internal/contact/{user_id}` while omitting the `X-Internal-Token` header or supplying arbitrary values. The objective is to retrieve user information, enumerate valid identifiers, or leverage an internal network compromise to exfiltrate personal data.
+
+- **Countermeasure:**  
+  **Secret Token Pattern** — `user-service` implements a security middleware that validates the `X-Internal-Token` header before executing any business logic. The token is compared against the shared secret (`FITBEAT_INTERNAL_SECRET`) using a constant-time (timing-safe) comparison to prevent timing attacks. The secret is injected only into containers requiring legitimate S2S communication through deployment environment variables. Requests that omit the header or provide an invalid token receive a `401 Unauthorized` response, preventing access to internal endpoints and ensuring that no information about the token's existence or format is disclosed.
 
 ![Secret Token Pattern evidence](./images/p3/EvidenciaSecretToken.jpg)
 Description: network location is not treated as trust. Even if an attacker reaches an internal route, the service rejects the request unless the deployment-injected shared secret is present and valid.
@@ -405,4 +441,3 @@ The endpoint measured was `POST /api/auth/login`. The test scripts are located i
 The system is stable at 1 and 50 VUs: p(95) remains below 200 ms and there are no failed requests. The knee appears at 200 VUs because p(95) grows from 159 ms to 8936 ms and the first failures appear with a 15.5% error rate. From 500 VUs onward, the endpoint is no longer degraded but saturated: average latency stays near 9.6 seconds, p(95) is around 10 seconds, and the error rate reaches 100%.
 
 This result indicates that, for the current Docker Compose deployment, the practical capacity of the authentication path is below 200 concurrent login users. The first bottleneck to investigate is the synchronous `user-service` and PostgreSQL path behind KrakenD, because the test exercises mainly credential validation, token creation, gateway forwarding, and database access. 
-
