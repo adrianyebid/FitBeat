@@ -33,19 +33,7 @@ builder.Services.AddScoped<AchievementEvaluationService>();
 builder.Services.AddScoped<InboundEventProcessor>();
 builder.Services.AddHostedService<AchievementsRabbitConsumer>();
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("frontend", policy =>
-    {
-        policy
-            .WithOrigins(frontendAppUrl, "http://127.0.0.1:5173", "http://localhost:5173")
-            .AllowAnyHeader()
-            .AllowAnyMethod();
-    });
-});
-
 var app = builder.Build();
-app.UseCors("frontend");
 
 using (var scope = app.Services.CreateScope())
 {

@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from src.auth.infrastructure.local_auth_router import local_auth_router
 from src.auth.infrastructure.routers import auth_router
@@ -17,15 +16,6 @@ app = FastAPI(
     title="FitBeat Component A API",
     description="Usuarios, autenticacion local y OAuth Spotify",
     version="1.1.0",
-)
-
-allowed_origins = ["http://localhost:5173", settings.FRONTEND_APP_URL]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=list(dict.fromkeys(allowed_origins)),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
 )
 
 app.include_router(user_router)

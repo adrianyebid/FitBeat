@@ -6,6 +6,16 @@
   "timeout": "10000ms",
   "cache_ttl": "0s",
   "output_encoding": "no-op",
+  "extra_config": {
+    "security/cors": {
+      "allow_origins": ["http://localhost:5173", "http://localhost:3000", "http://localhost:8090"],
+      "allow_methods": ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      "allow_headers": ["*"],
+      "expose_headers": ["Content-Type", "Content-Length", "Authorization"],
+      "allow_credentials": true,
+      "max_age": "12h"
+    }
+  },
   "endpoints": [
     {
       "endpoint": "/api/auth/register",
@@ -54,6 +64,14 @@
       "input_headers": ["*"],
       "input_query_strings": ["*"],
       "backend": [{"url_pattern": "/auth/callback", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+    },
+    {
+      "endpoint": "/auth/internal/token/{user_id}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [{"url_pattern": "/auth/internal/token/{user_id}", "host": ["http://component_a:8000"], "encoding": "no-op"}]
     },
     {
       "endpoint": "/auth/verify-connection/{user_id}",
