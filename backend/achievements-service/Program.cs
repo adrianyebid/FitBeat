@@ -34,6 +34,8 @@ builder.Services.AddScoped<InboundEventProcessor>();
 builder.Services.AddHostedService<AchievementsRabbitConsumer>();
 
 var app = builder.Build();
+app.UseCors("frontend");
+app.UseInternalSecretAuth();
 
 using (var scope = app.Services.CreateScope())
 {

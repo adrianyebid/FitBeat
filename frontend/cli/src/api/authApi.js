@@ -77,7 +77,7 @@ export async function getSpotifyLoginUrl(userId) {
     throw new Error('No se puede abrir Spotify sin user_id.');
   }
   const { config } = await import('../config/config.js');
-  return `${config.authApiUrl}/auth/login/${encodeURIComponent(userId)}`;
+  return `http://localhost:8000/auth/login/${encodeURIComponent(userId)}`;
 }
 
 export async function verifySpotifyConnection(userId) {

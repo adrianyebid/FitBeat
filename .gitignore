@@ -94,3 +94,5 @@ desktop.ini
 
 # Ignore private keys
 laboratory-5/certs/*.key
+
+docs/

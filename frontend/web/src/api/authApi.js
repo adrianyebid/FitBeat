@@ -75,7 +75,7 @@ export function getSpotifyLoginUrl(userId) {
   if (!userId) {
     throw new Error("No se puede abrir Spotify sin user_id.");
   }
-  return `${AUTH_API_URL}/auth/login/${encodeURIComponent(userId)}`;
+  return `http://localhost:8000/auth/login/${encodeURIComponent(userId)}`;
 }
 
 export function redirectToSpotifyLogin(userId) {
