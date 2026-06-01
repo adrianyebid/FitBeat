@@ -44,7 +44,7 @@ func main() {
 
 	engineService := service.NewEngineService(engineRepository, publisher, cfg.Events.Source)
 
-	handler.RegisterRoutes(r, engineService)
+	handler.RegisterRoutes(r, engineService, cfg.InternalSecret)
 
 	log.Printf("Music Service running on port %s", cfg.Port)
 	if err := r.Run(":" + cfg.Port); err != nil {

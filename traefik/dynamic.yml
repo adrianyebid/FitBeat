@@ -11,6 +11,8 @@ http:
         PathPrefix(`/achievements`) ||
         PathPrefix(`/notifications`)
       service: api-gateway-svc
+      middlewares:
+        - cors-headers
       priority: 10
 
     api-https:
@@ -23,8 +25,27 @@ http:
         PathPrefix(`/achievements`) ||
         PathPrefix(`/notifications`)
       service: api-gateway-svc
+      middlewares:
+        - cors-headers
       priority: 10
       tls: {}
+
+  middlewares:
+    cors-headers:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        accessControlAllowHeaders:
+          - "*"
+        accessControlAllowOriginList:
+          - "http://localhost:5173"
+          - "http://localhost:3000"
+        accessControlAllowCredentials: true
+        accessControlMaxAge: 43200
 
   services:
     # KrakenD es el único backend que Traefik conoce para las APIs
@@ -43,3 +64,4 @@ tls:
       cipherSuites:
         - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
         - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+
