@@ -410,9 +410,18 @@ This result indicates that, for the current Docker Compose deployment, the pract
 
 #### Reliability scenarios
 
-##### Scenario 1
-##### Scenario 2
-##### Scenario 3
+##### Scenario 1 - Warm Spare Pattern
+
+<img width="1920" height="1080" alt="Warm Spare Pattern" src="https://github.com/user-attachments/assets/07484e21-dec7-4b9e-9e32-4c87ce7348b2" />
+
+##### Scenario 2 - Service Discovery Pattern
+
+<img width="1920" height="1080" alt="Service Discovery Pattern" src="https://github.com/user-attachments/assets/3e2e1c4a-6e5e-4f2d-9481-a86ca54de2ed" />
+
+##### Scenario 3 - Cluster Pattern
+
+<img width="1920" height="1080" alt="Clustern Pattern" src="https://github.com/user-attachments/assets/b9dde584-861e-49b0-9759-98afba3cb2d6" />
+
 ##### Scenario 4 - Timeout Pattern
 
 ![Circuit Breaker Pattern](./images/p4/timeoutPattern.png)
