@@ -1,0 +1,466 @@
+# ===================================================================
+# Docker Compose — Prototype 2 (Componentes A+B+C+D)
+# ===================================================================
+
+name: prototype_2
+
+services:
+  traefik:
+    image: traefik:v3.1
+    container_name: fb_gateway
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443 #Secure Channel
+    ports:
+      - "8090:80"
+      - "8088:8080"
+      - "443:443" #Secure Channel
+    volumes:
+      - ./traefik:/etc/traefik/dynamic:ro
+      - ./laboratory-5/certs:/etc/traefik/certs:ro
+    networks:
+      - gateway_network
+    restart: always
+
+  # ─────────────── Base de Datos Relacional (Componente A) ───────────────
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: fb_users_db
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h 127.0.0.1 -p 5432"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - users_db_net
+    restart: always
+
+  # ─────────────── Spotify Mock (para pruebas de rendimiento) ───────────────
+  spotify_mock:
+    build: ./performance-tests/spotify-mock
+    container_name: fb_spotify_mock
+    ports:
+      - "3001:3000"
+    networks:
+      - api_gateway_net
+    restart: unless-stopped
+
+  # ─────────────── API FastAPI (Componente A) ───────────────
+  component_a:
+    build: ./backend/user-service
+    container_name: fb_users_ms
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend/user-service:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
+      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
+      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
+      REDIRECT_URI: ${REDIRECT_URI}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      # Set these to point at the mock during performance tests:
+      SPOTIFY_TOKEN_URL: ${SPOTIFY_TOKEN_URL:-https://accounts.spotify.com/api/token}
+      SPOTIFY_ME_URL: ${SPOTIFY_ME_URL:-https://api.spotify.com/v1/me}
+      SPOTIFY_NOW_PLAYING_URL: ${SPOTIFY_NOW_PLAYING_URL:-https://api.spotify.com/v1/me/player/currently-playing}
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    networks:
+      - api_gateway_net
+      - users_db_net
+      - services_internal_net
+    restart: always
+
+  # ───────────── CouchDB (Componente B) ─────────────
+  couchdb:
+    image: couchdb:3
+    container_name: fb_music_db
+    environment:
+      COUCHDB_SINGLE_NODE: "true"
+      COUCHDB_USER: ${COUCHDB_USER:-admin}
+      COUCHDB_PASSWORD: ${COUCHDB_PASSWORD:-secret}
+    ports:
+      - "5984:5984"
+    volumes:
+      - couchdb_data:/opt/couchdb/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:5984/_up >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - music_db_net
+    restart: always
+
+  # ───────────── RabbitMQ (Infra asincrona) ─────────────
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: fb_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - messaging_net
+    restart: always
+
+  # ───────────── PostgreSQL (Event Processor) ─────────────
+  event_processor_db:
+    image: postgres:15-alpine
+    container_name: fb_event_db
+    environment:
+      POSTGRES_USER: ${EVENT_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${EVENT_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${EVENT_DB_NAME:-event_processor}
+    ports:
+      - "5434:5432"
+    volumes:
+      - event_processor_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${EVENT_DB_USER:-postgres} -d ${EVENT_DB_NAME:-event_processor} -h 127.0.0.1 -p 5432"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    networks:
+      - events_db_net
+    restart: always
+
+  # ───────────── Event Processor (Java, async) ─────────────
+  event_processor:
+    build: ./backend/event-processor
+    container_name: fb_event_processor
+    ports:
+      - "8084:8082"
+    environment:
+      EVENT_DB_URL: jdbc:postgresql://event_processor_db:5432/${EVENT_DB_NAME:-event_processor}
+      EVENT_DB_USER: ${EVENT_DB_USER:-postgres}
+      EVENT_DB_PASSWORD: ${EVENT_DB_PASSWORD:-postgres}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_PASS: ${RABBITMQ_PASS:-guest}
+      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
+      EVENT_QUEUE_NAME: ${EVENT_QUEUE_NAME:-fitbeat.event-processor.q}
+      EVENT_DLQ_NAME: ${EVENT_DLQ_NAME:-fitbeat.event-processor.dlq}
+      WEEKLY_SESSIONS_GOAL: ${WEEKLY_SESSIONS_GOAL:-3}
+      EVENT_SOURCE: event-processor
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      event_processor_db:
+        condition: service_healthy
+    networks:
+      - messaging_net
+      - events_db_net
+    restart: always
+
+  # ───────────── Music Service (Componente B) ─────────────
+  music_service:
+    build: ./backend/music-service
+    container_name: fb_music_ms
+    ports:
+      - "8081:8081"
+    environment:
+      PORT: "8081"
+      COUCHDB_ADDR: "${COUCHDB_USER:-admin}:${COUCHDB_PASSWORD:-secret}@couchdb:5984"
+      EVENTS_ENABLED: "true"
+      RABBITMQ_URL: "amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/"
+      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
+      EVENT_SOURCE: music-service
+      # Set these to point at the mock during performance tests:
+      SPOTIFY_SEARCH_URL: ${SPOTIFY_SEARCH_URL:-https://api.spotify.com/v1/search}
+      SPOTIFY_QUEUE_URL: ${SPOTIFY_QUEUE_URL:-https://api.spotify.com/v1/me/player/queue}
+    depends_on:
+      couchdb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - api_gateway_net
+      - music_db_net
+      - messaging_net
+    restart: always
+
+  # ───────────── PostgreSQL (Achievements Service) ─────────────
+  achievements_db:
+    image: postgres:15-alpine
+    container_name: fb_achievements_db
+    environment:
+      POSTGRES_USER: ${ACH_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${ACH_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${ACH_POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - achievements_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ACH_POSTGRES_USER} -d ${ACH_POSTGRES_DB} -h 127.0.0.1 -p 5432"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - achievements_db_net
+    restart: always
+
+  # ───────────── Achievements Service (Componente D) ─────────────
+  achievements_service:
+    build: ./backend/achievements-service
+    container_name: fb_achievements_ms
+    ports:
+      - "8082:8082"
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:8082
+      ACHIEVEMENTS_DATABASE_URL: Host=achievements_db;Port=5432;Database=${ACH_POSTGRES_DB};Username=${ACH_POSTGRES_USER};Password=${ACH_POSTGRES_PASSWORD}
+      ACHIEVEMENTS_DB_PATH: ${ACHIEVEMENTS_DB_PATH:-/app/Data/achievements.db}
+      FRONTEND_APP_URL: ${FRONTEND_APP_URL:-http://localhost:5173}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_PASS: ${RABBITMQ_PASS:-guest}
+      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
+      RABBITMQ_DLX_EXCHANGE: ${RABBITMQ_DLX_EXCHANGE:-fitbeat.events.dlx}
+      ACHIEVEMENTS_QUEUE_NAME: ${ACHIEVEMENTS_QUEUE_NAME:-fitbeat.achievements.q}
+      ACHIEVEMENTS_RETRY_QUEUE_NAME: ${ACHIEVEMENTS_RETRY_QUEUE_NAME:-fitbeat.achievements.retry.q}
+      ACHIEVEMENTS_DLQ_NAME: ${ACHIEVEMENTS_DLQ_NAME:-fitbeat.achievements.dlq}
+      ACHIEVEMENTS_RETRY_ROUTING_KEY: ${ACHIEVEMENTS_RETRY_ROUTING_KEY:-fitbeat.achievements.retry}
+      ACHIEVEMENTS_DLQ_ROUTING_KEY: ${ACHIEVEMENTS_DLQ_ROUTING_KEY:-fitbeat.achievements.dlq}
+      ACHIEVEMENTS_MAX_RETRIES: ${ACHIEVEMENTS_MAX_RETRIES:-3}
+      ACHIEVEMENTS_RETRY_DELAY_MS: ${ACHIEVEMENTS_RETRY_DELAY_MS:-5000}
+      ACHIEVEMENTS_DEFAULT_SESSION_MINUTES: ${ACHIEVEMENTS_DEFAULT_SESSION_MINUTES:-30}
+    depends_on:
+      achievements_db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8082/health >/dev/null"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - api_gateway_net
+      - achievements_db_net
+      - messaging_net
+    restart: always
+
+  # ───────────── PostgreSQL (Notification Service) ─────────────
+  notification_service_db:
+    image: postgres:15-alpine
+    container_name: fb_notification_db
+    environment:
+      POSTGRES_USER: ${NOTIFICATION_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${NOTIFICATION_DB_NAME:-notification_service}
+    ports:
+      - "5435:5432"
+    volumes:
+      - notification_service_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${NOTIFICATION_DB_USER:-postgres} -d ${NOTIFICATION_DB_NAME:-notification_service} -h 127.0.0.1 -p 5432"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    networks:
+      - notification_db_net
+    restart: always
+
+ # ───────────── Notification Service (TypeScript) ─────────────
+  notification_service:
+    build: ./backend/notification-service
+    container_name: fb_notification_ms
+    ports:
+      - "8083:8083"
+    environment:
+      PORT: "8083"
+      NOTIFICATION_DB_URL: postgresql://${NOTIFICATION_DB_USER:-postgres}:${NOTIFICATION_DB_PASSWORD:-postgres}@notification_service_db:5432/${NOTIFICATION_DB_NAME:-notification_service}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
+      RABBITMQ_EVENTS_EXCHANGE: ${RABBITMQ_EVENTS_EXCHANGE:-fitbeat.events}
+      NOTIFICATION_QUEUE_NAME: ${NOTIFICATION_QUEUE_NAME:-fitbeat.notification.q}
+      NOTIFICATION_RETRY_QUEUE_NAME: ${NOTIFICATION_RETRY_QUEUE_NAME:-fitbeat.notification.retry.q}
+      NOTIFICATION_DLQ_NAME: ${NOTIFICATION_DLQ_NAME:-fitbeat.notification.dlq}
+      NOTIFICATION_DLX_NAME: ${NOTIFICATION_DLX_NAME:-fitbeat.notification.dlx}
+      NOTIFICATION_MAX_RETRIES: ${NOTIFICATION_MAX_RETRIES:-3}
+      NOTIFICATION_RETRY_DELAY_MS: ${NOTIFICATION_RETRY_DELAY_MS:-5000}
+      USER_SERVICE_URL: http://component_a:8000
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-fitbeat-internal-token-2026}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-fitbeat1e@gmail.com}
+      SMTP_PASS: ${SMTP_PASS:-jdpexgyshtaeywxf}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      notification_service_db:
+        condition: service_healthy
+      component_a:
+        condition: service_started
+    networks:
+      - api_gateway_net
+      - notification_db_net
+      - messaging_net
+      - services_internal_net
+    restart: always
+
+  # ───────────── API Gateway (KrakenD) ─────────────
+  krakend:
+    image: devopsfaith/krakend:2.7
+    container_name: fb_api_gateway
+    volumes:
+      - ./krakend:/etc/krakend:ro
+    ports:
+      - "8085:8085"
+    command: ["run", "-c", "/etc/krakend/krakend.json"]
+    depends_on:
+      component_a:
+        condition: service_started
+      music_service:
+        condition: service_started
+      achievements_service:
+        condition: service_healthy
+      notification_service:
+        condition: service_started
+    networks:
+      - gateway_network
+      - api_gateway_net
+    restart: always
+
+  # ───────────── Frontend (React + Vite) ─────────────
+  frontend:
+    build: ./frontend/web
+    container_name: fitbeat_frontend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_AUTH_API_URL: http://localhost:8090
+      VITE_MUSIC_API_URL: http://localhost:8090
+      VITE_ACHIEVEMENTS_API_URL: http://localhost:8090
+      VITE_WS_API_URL: ws://localhost:8090
+    volumes:
+      - ./frontend/web:/app
+      - /app/node_modules
+    depends_on:
+      component_a:
+        condition: service_started
+      music_service:
+        condition: service_started
+      achievements_service:
+        condition: service_healthy
+    networks:
+      - gateway_network
+    restart: always
+    profiles:
+      - legacy-csr
+
+  # ───────────── Frontend Web SSR (Next.js) ─────────────
+  frontend_ssr:
+    build: ./frontend/web-ssr
+    container_name: fitbeat_frontend_ssr
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_GATEWAY_URL: http://localhost:8090
+    depends_on:
+      traefik:
+        condition: service_started
+      krakend:
+        condition: service_started
+    networks:
+      - gateway_network
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.frontend_ssr.rule=PathPrefix(`/`)
+      - traefik.http.routers.frontend_ssr.entrypoints=web
+      - traefik.http.routers.frontend_ssr.priority=1
+      - traefik.http.services.frontend_ssr.loadbalancer.server.port=3000
+    restart: always
+
+  frontend_cli:
+    build: ./frontend/cli
+    container_name: fitbeat_cli
+    environment:
+      AUTH_API_URL: http://fb_gateway
+      MUSIC_API_URL: http://fb_gateway
+      WS_API_URL: ws://fb_gateway
+      CLI_DEBUG: "false"
+    depends_on:
+      traefik:
+        condition: service_started
+      component_a:
+        condition: service_started
+      music_service:
+        condition: service_started
+    networks:
+      - gateway_network
+    stdin_open: true
+    tty: true
+    profiles:
+      - cli
+
+# ─────────────── Redes Segmentadas (Network Segmentation Pattern) ─────────────
+networks:
+  # DMZ / entrada pública: Traefik + KrakenD + frontends
+  gateway_network:
+    driver: bridge
+  # Zona API: KrakenD ↔ microservicios.
+  # No es internal para que los servicios puedan salir a internet (Spotify OAuth, etc.)
+  # El aislamiento frente a Traefik se garantiza porque Traefik solo está en gateway_network.
+  api_gateway_net:
+    driver: bridge
+  # Zona de datos: cada BD aislada con su único servicio propietario
+  users_db_net:
+    driver: bridge
+    internal: true
+  music_db_net:
+    driver: bridge
+    internal: true
+  achievements_db_net:
+    driver: bridge
+    internal: true
+  notification_db_net:
+    driver: bridge
+    internal: true
+  events_db_net:
+    driver: bridge
+    internal: true
+  # Zona de mensajería: RabbitMQ solo visible para sus consumidores/productores
+  messaging_net:
+    driver: bridge
+    internal: true
+  # Canal interno servicio-a-servicio: notification → user-service
+  services_internal_net:
+    driver: bridge
+    internal: true
+
+# ─────────────── Volúmenes Persistentes ─────────────
+volumes:
+  postgres_data:
+  couchdb_data:
+  event_processor_data:
+  achievements_postgres_data:
+  notification_service_data:

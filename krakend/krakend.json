@@ -23,7 +23,16 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/api/auth/register", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+      "backend": [{
+        "url_pattern": "/api/auth/register",
+        "host": [
+          "http://component_a_1:8000",
+          "http://component_a_2:8000",
+          "http://component_a_3:8000"
+        ],
+        "encoding": "no-op",
+        "sd": "static"
+      }]
     },
     {
       "endpoint": "/api/auth/login",
@@ -31,7 +40,16 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/api/auth/login", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+      "backend": [{
+        "url_pattern": "/api/auth/login",
+        "host": [
+          "http://component_a_1:8000",
+          "http://component_a_2:8000",
+          "http://component_a_3:8000"
+        ],
+        "encoding": "no-op",
+        "sd": "static"
+      }]
     },
     {
       "endpoint": "/api/auth/refresh",
@@ -39,7 +57,16 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/api/auth/refresh", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+      "backend": [{
+        "url_pattern": "/api/auth/refresh",
+        "host": [
+          "http://component_a_1:8000",
+          "http://component_a_2:8000",
+          "http://component_a_3:8000"
+        ],
+        "encoding": "no-op",
+        "sd": "static"
+      }]
     },
     {
       "endpoint": "/api/auth/me",
@@ -47,7 +74,16 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/api/auth/me", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+      "backend": [{
+        "url_pattern": "/api/auth/me",
+        "host": [
+          "http://component_a_1:8000",
+          "http://component_a_2:8000",
+          "http://component_a_3:8000"
+        ],
+        "encoding": "no-op",
+        "sd": "static"
+      }]
     },
     {
       "endpoint": "/auth/login/{user_id}",
@@ -55,7 +91,24 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/auth/login/{user_id}", "host": ["http://component_a:8000"], "encoding": "no-op", "extra_config": {"backend/http/client": {"no_redirect": true}, "github.com/devopsfaith/krakend/http/client": {"no_redirect": true}}}]
+      "backend": [{
+        "url_pattern": "/auth/login/{user_id}",
+        "host": [
+          "http://component_a_1:8000",
+          "http://component_a_2:8000",
+          "http://component_a_3:8000"
+        ],
+        "encoding": "no-op",
+        "sd": "static",
+        "extra_config": {
+          "backend/http/client": {
+            "no_redirect": true
+          },
+          "github.com/devopsfaith/krakend/http/client": {
+            "no_redirect": true
+          }
+        }
+      }]
     },
     {
       "endpoint": "/auth/callback",
@@ -63,7 +116,24 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/auth/callback", "host": ["http://component_a:8000"], "encoding": "no-op", "extra_config": {"backend/http/client": {"no_redirect": true}, "github.com/devopsfaith/krakend/http/client": {"no_redirect": true}}}]
+      "backend": [{
+        "url_pattern": "/auth/callback",
+        "host": [
+          "http://component_a_1:8000",
+          "http://component_a_2:8000",
+          "http://component_a_3:8000"
+        ],
+        "encoding": "no-op",
+        "sd": "static",
+        "extra_config": {
+          "backend/http/client": {
+            "no_redirect": true
+          },
+          "github.com/devopsfaith/krakend/http/client": {
+            "no_redirect": true
+          }
+        }
+      }]
     },
     {
       "endpoint": "/auth/internal/token/{user_id}",
@@ -71,7 +141,16 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/auth/internal/token/{user_id}", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+      "backend": [{
+        "url_pattern": "/auth/internal/token/{user_id}",
+        "host": [
+          "http://component_a_1:8000",
+          "http://component_a_2:8000",
+          "http://component_a_3:8000"
+        ],
+        "encoding": "no-op",
+        "sd": "static"
+      }]
     },
     {
       "endpoint": "/auth/verify-connection/{user_id}",
@@ -79,7 +158,16 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/auth/verify-connection/{user_id}", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+      "backend": [{
+        "url_pattern": "/auth/verify-connection/{user_id}",
+        "host": [
+          "http://component_a_1:8000",
+          "http://component_a_2:8000",
+          "http://component_a_3:8000"
+        ],
+        "encoding": "no-op",
+        "sd": "static"
+      }]
     },
     {
       "endpoint": "/auth/now-playing/{user_id}",
@@ -87,7 +175,16 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/auth/now-playing/{user_id}", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+      "backend": [{
+        "url_pattern": "/auth/now-playing/{user_id}",
+        "host": [
+          "http://component_a_1:8000",
+          "http://component_a_2:8000",
+          "http://component_a_3:8000"
+        ],
+        "encoding": "no-op",
+        "sd": "static"
+      }]
     },
     {
       "endpoint": "/auth/internal/token/{user_id}",
@@ -103,7 +200,16 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/users/", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+      "backend": [{
+        "url_pattern": "/users/",
+        "host": [
+          "http://component_a_1:8000",
+          "http://component_a_2:8000",
+          "http://component_a_3:8000"
+        ],
+        "encoding": "no-op",
+        "sd": "static"
+      }]
     },
     {
       "endpoint": "/users/{user_id}",
@@ -111,7 +217,16 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/users/{user_id}", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+      "backend": [{
+        "url_pattern": "/users/{user_id}",
+        "host": [
+          "http://component_a_1:8000",
+          "http://component_a_2:8000",
+          "http://component_a_3:8000"
+        ],
+        "encoding": "no-op",
+        "sd": "static"
+      }]
     },
     {
       "endpoint": "/users/{user_id}/music-preferences",
@@ -119,7 +234,16 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/users/{user_id}/music-preferences", "host": ["http://component_a:8000"], "encoding": "no-op"}]
+      "backend": [{
+        "url_pattern": "/users/{user_id}/music-preferences",
+        "host": [
+          "http://component_a_1:8000",
+          "http://component_a_2:8000",
+          "http://component_a_3:8000"
+        ],
+        "encoding": "no-op",
+        "sd": "static"
+      }]
     },
     {
       "endpoint": "/api/v1/health",
@@ -127,7 +251,16 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/api/v1/health", "host": ["http://music_service:8081"], "encoding": "no-op"}]
+      "backend": [{
+        "url_pattern": "/api/v1/health",
+        "host": [
+          "http://music_service_1:8081",
+          "http://music_service_2:8081",
+          "http://music_service_3:8081"
+        ],
+        "encoding": "no-op",
+        "sd": "static"
+      }]
     },
     {
       "endpoint": "/api/v1/sessions",
@@ -135,7 +268,16 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/api/v1/sessions", "host": ["http://music_service:8081"], "encoding": "no-op"}]
+      "backend": [{
+        "url_pattern": "/api/v1/sessions",
+        "host": [
+          "http://music_service_1:8081",
+          "http://music_service_2:8081",
+          "http://music_service_3:8081"
+        ],
+        "encoding": "no-op",
+        "sd": "static"
+      }]
     },
     {
       "endpoint": "/api/v1/sessions/{id}",
@@ -143,7 +285,16 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/api/v1/sessions/{id}", "host": ["http://music_service:8081"], "encoding": "no-op"}]
+      "backend": [{
+        "url_pattern": "/api/v1/sessions/{id}",
+        "host": [
+          "http://music_service_1:8081",
+          "http://music_service_2:8081",
+          "http://music_service_3:8081"
+        ],
+        "encoding": "no-op",
+        "sd": "static"
+      }]
     },
     {
       "endpoint": "/api/v1/sessions/{id}/finish",
@@ -151,7 +302,16 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/api/v1/sessions/{id}/finish", "host": ["http://music_service:8081"], "encoding": "no-op"}]
+      "backend": [{
+        "url_pattern": "/api/v1/sessions/{id}/finish",
+        "host": [
+          "http://music_service_1:8081",
+          "http://music_service_2:8081",
+          "http://music_service_3:8081"
+        ],
+        "encoding": "no-op",
+        "sd": "static"
+      }]
     },
     {
       "endpoint": "/api/v1/ws",
@@ -159,7 +319,16 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/api/v1/ws", "host": ["http://music_service:8081"], "encoding": "no-op"}]
+      "backend": [{
+        "url_pattern": "/api/v1/ws",
+        "host": [
+          "http://music_service_1:8081",
+          "http://music_service_2:8081",
+          "http://music_service_3:8081"
+        ],
+        "encoding": "no-op",
+        "sd": "static"
+      }]
     },
     {
       "endpoint": "/achievements/catalog",
@@ -167,7 +336,16 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/achievements/catalog", "host": ["http://achievements_service:8082"], "encoding": "no-op"}]
+      "backend": [{
+        "url_pattern": "/achievements/catalog",
+        "host": [
+          "http://achievements_service_1:8082",
+          "http://achievements_service_2:8082",
+          "http://achievements_service_3:8082"
+        ],
+        "encoding": "no-op",
+        "sd": "static"
+      }]
     },
     {
       "endpoint": "/achievements/user/{id}",
@@ -175,7 +353,16 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/achievements/user/{id}", "host": ["http://achievements_service:8082"], "encoding": "no-op"}]
+      "backend": [{
+        "url_pattern": "/achievements/user/{id}",
+        "host": [
+          "http://achievements_service_1:8082",
+          "http://achievements_service_2:8082",
+          "http://achievements_service_3:8082"
+        ],
+        "encoding": "no-op",
+        "sd": "static"
+      }]
     },
     {
       "endpoint": "/achievements/evaluate",
@@ -183,7 +370,16 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/achievements/evaluate", "host": ["http://achievements_service:8082"], "encoding": "no-op"}]
+      "backend": [{
+        "url_pattern": "/achievements/evaluate",
+        "host": [
+          "http://achievements_service_1:8082",
+          "http://achievements_service_2:8082",
+          "http://achievements_service_3:8082"
+        ],
+        "encoding": "no-op",
+        "sd": "static"
+      }]
     },
     {
       "endpoint": "/notifications/user/{id}",
@@ -191,7 +387,16 @@
       "output_encoding": "no-op",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/notifications/user/{id}", "host": ["http://notification_service:8083"], "encoding": "no-op"}]
+      "backend": [{
+        "url_pattern": "/notifications/user/{id}",
+        "host": [
+          "http://notification_service_1:8083",
+          "http://notification_service_2:8083",
+          "http://notification_service_3:8083"
+        ],
+        "encoding": "no-op",
+        "sd": "static"
+      }]
     }
   ]
 }
