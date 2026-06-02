@@ -132,6 +132,7 @@ services:
       postgres_db:
         condition: service_healthy
     networks:
+      - gateway_network
       - api_gateway_net
       - users_db_net
       - services_internal_net
@@ -218,6 +219,7 @@ services:
       WEEKLY_SESSIONS_GOAL: ${WEEKLY_SESSIONS_GOAL:-3}
       EVENT_SOURCE: event-processor-1
       INSTANCE_ID: "event-processor-1"
+      FITBEAT_INTERNAL_SECRET: ${FITBEAT_INTERNAL_SECRET}
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -246,6 +248,7 @@ services:
       WEEKLY_SESSIONS_GOAL: ${WEEKLY_SESSIONS_GOAL:-3}
       EVENT_SOURCE: event-processor-2
       INSTANCE_ID: "event-processor-2"
+      FITBEAT_INTERNAL_SECRET: ${FITBEAT_INTERNAL_SECRET}
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -328,6 +331,7 @@ services:
       rabbitmq:
         condition: service_healthy
     networks:
+      - gateway_network
       - api_gateway_net
       - music_db_net
       - messaging_net
@@ -379,7 +383,9 @@ services:
       ACHIEVEMENTS_MAX_RETRIES: ${ACHIEVEMENTS_MAX_RETRIES:-3}
       ACHIEVEMENTS_RETRY_DELAY_MS: ${ACHIEVEMENTS_RETRY_DELAY_MS:-5000}
       ACHIEVEMENTS_DEFAULT_SESSION_MINUTES: ${ACHIEVEMENTS_DEFAULT_SESSION_MINUTES:-30}
+
       INSTANCE_ID: "achievements-service-1"
+      FITBEAT_INTERNAL_SECRET: ${FITBEAT_INTERNAL_SECRET}
     depends_on:
       achievements_db:
         condition: service_healthy
@@ -421,6 +427,7 @@ services:
       ACHIEVEMENTS_RETRY_DELAY_MS: ${ACHIEVEMENTS_RETRY_DELAY_MS:-5000}
       ACHIEVEMENTS_DEFAULT_SESSION_MINUTES: ${ACHIEVEMENTS_DEFAULT_SESSION_MINUTES:-30}
       INSTANCE_ID: "achievements-service-2"
+      FITBEAT_INTERNAL_SECRET: ${FITBEAT_INTERNAL_SECRET}
     depends_on:
       achievements_db:
         condition: service_healthy
@@ -462,6 +469,8 @@ services:
       ACHIEVEMENTS_RETRY_DELAY_MS: ${ACHIEVEMENTS_RETRY_DELAY_MS:-5000}
       ACHIEVEMENTS_DEFAULT_SESSION_MINUTES: ${ACHIEVEMENTS_DEFAULT_SESSION_MINUTES:-30}
       INSTANCE_ID: "achievements-service-3"
+      FITBEAT_INTERNAL_SECRET: ${FITBEAT_INTERNAL_SECRET}
+
     depends_on:
       achievements_db:
         condition: service_healthy
@@ -518,7 +527,8 @@ services:
       NOTIFICATION_MAX_RETRIES: ${NOTIFICATION_MAX_RETRIES:-3}
       NOTIFICATION_RETRY_DELAY_MS: ${NOTIFICATION_RETRY_DELAY_MS:-5000}
       USER_SERVICE_URL: http://component_a_1:8000
-      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-fitbeat-internal-token-2026}
+      INTERNAL_SERVICE_TOKEN: ${FITBEAT_INTERNAL_SECRET:-${INTERNAL_SERVICE_TOKEN:-fitbeat-internal-token-2026}}
+      FITBEAT_INTERNAL_SECRET: ${FITBEAT_INTERNAL_SECRET}
       SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-fitbeat1e@gmail.com}
@@ -659,7 +669,7 @@ services:
       VITE_AUTH_API_URL: http://localhost:8090
       VITE_MUSIC_API_URL: http://localhost:8090
       VITE_ACHIEVEMENTS_API_URL: http://localhost:8090
-      VITE_WS_API_URL: ws://localhost:8090
+      VITE_WS_API_URL: ws://localhost:8081
     volumes:
       - ./frontend/web:/app
       - /app/node_modules
@@ -673,8 +683,6 @@ services:
     networks:
       - gateway_network
     restart: always
-    profiles:
-      - legacy-csr
 
   # ───────────── Frontend Web SSR (Next.js) ─────────────
   frontend_ssr:

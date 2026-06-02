@@ -1,3 +1,4 @@
+import hmac
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -99,9 +100,10 @@ def get_token_for_component_b(
 ):
     authorized = False
 
-    # Ruta service-to-service opcional
-    if settings.INTERNAL_SERVICE_TOKEN:
-        if x_internal_token and x_internal_token == settings.INTERNAL_SERVICE_TOKEN:
+    # Ruta service-to-service (timing-safe comparison para mitigar timing attacks)
+    expected = settings.effective_internal_secret
+    if expected and x_internal_token:
+        if hmac.compare_digest(x_internal_token, expected):
             authorized = True
 
     # Ruta estricta por usuario autenticado
