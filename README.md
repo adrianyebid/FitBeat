@@ -441,3 +441,26 @@ The endpoint measured was `POST /api/auth/login`. The test scripts are located i
 The system is stable at 1 and 50 VUs: p(95) remains below 200 ms and there are no failed requests. The knee appears at 200 VUs because p(95) grows from 159 ms to 8936 ms and the first failures appear with a 15.5% error rate. From 500 VUs onward, the endpoint is no longer degraded but saturated: average latency stays near 9.6 seconds, p(95) is around 10 seconds, and the error rate reaches 100%.
 
 This result indicates that, for the current Docker Compose deployment, the practical capacity of the authentication path is below 200 concurrent login users. The first bottleneck to investigate is the synchronous `user-service` and PostgreSQL path behind KrakenD, because the test exercises mainly credential validation, token creation, gateway forwarding, and database access. 
+
+### Reliability
+
+#### Reliability scenarios
+
+##### Scenario 1 - Warm Spare Pattern
+
+<img width="1920" height="1080" alt="Warm Spare Pattern" src="https://github.com/user-attachments/assets/07484e21-dec7-4b9e-9e32-4c87ce7348b2" />
+
+##### Scenario 2 - Service Discovery Pattern
+
+<img width="1920" height="1080" alt="Service Discovery Pattern" src="https://github.com/user-attachments/assets/3e2e1c4a-6e5e-4f2d-9481-a86ca54de2ed" />
+
+##### Scenario 3 - Cluster Pattern
+
+<img width="1920" height="1080" alt="Clustern Pattern" src="https://github.com/user-attachments/assets/b9dde584-861e-49b0-9759-98afba3cb2d6" />
+
+##### Scenario 4 - Timeout Pattern
+
+![Circuit Breaker Pattern](./images/p4/timeoutPattern.png)
+
+#### Applied architectural tactics
+#### Applied architectural patterns
