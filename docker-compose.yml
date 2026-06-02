@@ -72,7 +72,6 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
-      REDIS_URL: redis://redis_cache:6379/0
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
       REDIRECT_URI: ${REDIRECT_URI}
@@ -84,13 +83,10 @@ services:
     depends_on:
       postgres_db:
         condition: service_healthy
-      redis_cache:
-        condition: service_healthy
     networks:
       - api_gateway_net
       - users_db_net
       - services_internal_net
-      - cache_net
     restart: always
 
   # ─────────────── API FastAPI (Componente A) - Replica 2 ───────────────
@@ -100,7 +96,6 @@ services:
     command: uvicorn src.main:app --host 0.0.0.0 --port 8000
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
-      REDIS_URL: redis://redis_cache:6379/0
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
       REDIRECT_URI: ${REDIRECT_URI}
@@ -112,13 +107,10 @@ services:
     depends_on:
       postgres_db:
         condition: service_healthy
-      redis_cache:
-        condition: service_healthy
     networks:
       - api_gateway_net
       - users_db_net
       - services_internal_net
-      - cache_net
     restart: always
 
   # ─────────────── API FastAPI (Componente A) - Replica 3 ───────────────
@@ -128,7 +120,6 @@ services:
     command: uvicorn src.main:app --host 0.0.0.0 --port 8000
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
-      REDIS_URL: redis://redis_cache:6379/0
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
       REDIRECT_URI: ${REDIRECT_URI}
@@ -140,14 +131,11 @@ services:
     depends_on:
       postgres_db:
         condition: service_healthy
-      redis_cache:
-        condition: service_healthy
     networks:
       - gateway_network
       - api_gateway_net
       - users_db_net
       - services_internal_net
-      - cache_net
     restart: always
 
   # ───────────── CouchDB (Componente B) ─────────────
@@ -188,24 +176,6 @@ services:
       retries: 20
     networks:
       - messaging_net
-    restart: always
-
-  # ───────────── Redis (JWT Token Caching - Performance Pattern) ─────────────
-  redis_cache:
-    image: redis:7-alpine
-    container_name: fb_redis_cache
-    ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
-    volumes:
-      - redis_cache_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    networks:
-      - cache_net
     restart: always
 
   # ───────────── PostgreSQL (Event Processor) ─────────────
@@ -785,10 +755,6 @@ networks:
   events_db_net:
     driver: bridge
     internal: true
-  # Zona de caché: Redis para JWT token caching (Performance Pattern)
-  cache_net:
-    driver: bridge
-    internal: true
   # Zona de mensajería: RabbitMQ solo visible para sus consumidores/productores
   messaging_net:
     driver: bridge
@@ -802,7 +768,6 @@ networks:
 volumes:
   postgres_data:
   couchdb_data:
-  redis_cache_data:
   event_processor_data:
   achievements_postgres_data:
   notification_service_data:

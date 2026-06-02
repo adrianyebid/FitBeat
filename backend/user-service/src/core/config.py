@@ -8,9 +8,6 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = "component_a"
     DATABASE_URL: str
 
-    # Redis Cache (JWT Token Caching - Performance Pattern)
-    REDIS_URL: str = "redis://localhost:6379/0"
-
     # Spotify API
     SPOTIFY_CLIENT_ID: str = ""
     SPOTIFY_CLIENT_SECRET: str = ""
@@ -41,11 +38,6 @@ class Settings(BaseSettings):
     def effective_internal_secret(self) -> str:
         """Returns FITBEAT_INTERNAL_SECRET with fallback to INTERNAL_SERVICE_TOKEN."""
         return self.FITBEAT_INTERNAL_SECRET or self.INTERNAL_SERVICE_TOKEN
-
-    @property
-    def redis_url(self) -> str:
-        """Returns Redis URL for cache initialization."""
-        return self.REDIS_URL
 
     model_config = SettingsConfigDict(
         env_file=".env",
