@@ -59,6 +59,24 @@ services:
       - api_gateway_net
     restart: unless-stopped
 
+  # ─────────────── Redis Cache (JWT Token Caching Pattern) ───────────────
+  redis_cache:
+    image: redis:7-alpine
+    container_name: fb_redis_cache
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_cache_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - cache_net
+    restart: always
+
   # ─────────────── API FastAPI (Componente A) - Replica 1 ───────────────
   component_a_1:
     build: ./backend/user-service
@@ -72,6 +90,7 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis_cache:6379/0
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
       REDIRECT_URI: ${REDIRECT_URI}
@@ -83,10 +102,13 @@ services:
     depends_on:
       postgres_db:
         condition: service_healthy
+      redis_cache:
+        condition: service_healthy
     networks:
       - api_gateway_net
       - users_db_net
       - services_internal_net
+      - cache_net
     restart: always
 
   # ─────────────── API FastAPI (Componente A) - Replica 2 ───────────────
@@ -96,6 +118,7 @@ services:
     command: uvicorn src.main:app --host 0.0.0.0 --port 8000
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis_cache:6379/0
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
       REDIRECT_URI: ${REDIRECT_URI}
@@ -107,10 +130,13 @@ services:
     depends_on:
       postgres_db:
         condition: service_healthy
+      redis_cache:
+        condition: service_healthy
     networks:
       - api_gateway_net
       - users_db_net
       - services_internal_net
+      - cache_net
     restart: always
 
   # ─────────────── API FastAPI (Componente A) - Replica 3 ───────────────
@@ -120,6 +146,7 @@ services:
     command: uvicorn src.main:app --host 0.0.0.0 --port 8000
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis_cache:6379/0
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
       REDIRECT_URI: ${REDIRECT_URI}
@@ -131,11 +158,14 @@ services:
     depends_on:
       postgres_db:
         condition: service_healthy
+      redis_cache:
+        condition: service_healthy
     networks:
       - gateway_network
       - api_gateway_net
       - users_db_net
       - services_internal_net
+      - cache_net
     restart: always
 
   # ───────────── CouchDB (Componente B) ─────────────
@@ -759,6 +789,10 @@ networks:
   messaging_net:
     driver: bridge
     internal: true
+  # Zona de cache: Redis solo para user-service (internal-only)
+  cache_net:
+    driver: bridge
+    internal: true
   # Canal interno servicio-a-servicio: notification → user-service
   services_internal_net:
     driver: bridge
@@ -767,6 +801,7 @@ networks:
 # ─────────────── Volúmenes Persistentes ─────────────
 volumes:
   postgres_data:
+  redis_cache_data:
   couchdb_data:
   event_processor_data:
   achievements_postgres_data:

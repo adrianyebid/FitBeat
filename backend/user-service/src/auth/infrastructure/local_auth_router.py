@@ -7,9 +7,11 @@ from sqlalchemy.orm import Session
 from src.auth.application.local_auth_service import (
     AuthServiceError,
     get_current_user,
+    get_current_user_async,
     get_user_contact_by_id,
     login_local_user,
     refresh_tokens,
+    refresh_tokens_async,
     register_local_user,
 )
 from src.core.config import settings
@@ -81,22 +83,22 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 
 
 @local_auth_router.post("/refresh", response_model=RefreshResponse)
-def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
+async def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
     try:
-        result = refresh_tokens(db, refresh_token=payload.refresh_token)
+        result = await refresh_tokens_async(db, refresh_token=payload.refresh_token)
         return result
     except AuthServiceError as exc:
         return _error_response(exc.message, exc.status_code)
 
 
 @local_auth_router.get("/me", response_model=AuthUserResponse)
-def me(
+async def me(
     authorization: str | None = Header(default=None),
     db: Session = Depends(get_db),
 ):
     try:
         access_token = _extract_bearer_token(authorization)
-        result = get_current_user(db, access_token=access_token)
+        result = await get_current_user_async(db, access_token=access_token)
         return result
     except AuthServiceError as exc:
         return _error_response(exc.message, exc.status_code)

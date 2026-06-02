@@ -11,6 +11,7 @@ from src.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
+    decode_token_async,
     hash_password,
     verify_password,
 )
@@ -233,3 +234,69 @@ def get_user_contact_by_id(db: Session, *, user_id: str) -> dict:
         "first_name": credential.first_name,
         "last_name": credential.last_name,
     }
+
+
+# Async versions for use with JWT token caching
+async def refresh_tokens_async(db: Session, *, refresh_token: str) -> dict:
+    """Async version of refresh_tokens with cached token validation."""
+    try:
+        payload = await decode_token_async(refresh_token, expected_type="refresh")
+    except ValueError as exc:
+        raise AuthServiceError(str(exc), 401) from exc
+
+    user_id = str(payload["sub"])
+    token_id = str(payload.get("jti") or "").strip()
+    if not token_id:
+        raise AuthServiceError("refresh token invalido", 401)
+
+    refresh_session = (
+        db.query(RefreshTokenSession)
+        .filter(
+            RefreshTokenSession.user_id == user_id,
+            RefreshTokenSession.token_id == token_id,
+        )
+        .first()
+    )
+
+    if not refresh_session:
+        raise AuthServiceError("refresh token no reconocido", 401)
+    if refresh_session.revoked_at is not None:
+        raise AuthServiceError("refresh token revocado", 401)
+    if refresh_session.expires_at <= datetime.now(timezone.utc):
+        raise AuthServiceError("refresh token expirado", 401)
+
+    credential = (
+        db.query(LocalAuthCredential)
+        .filter(LocalAuthCredential.user_id == user_id)
+        .first()
+    )
+    if not credential:
+        raise AuthServiceError("usuario no encontrado", 404)
+
+    token_payload = _issue_token_pair(
+        db,
+        user_id=credential.user_id,
+        email=credential.email,
+        revoke_token_id=token_id,
+    )
+    db.commit()
+    return token_payload
+
+
+async def get_current_user_async(db: Session, *, access_token: str) -> dict:
+    """Async version of get_current_user with cached token validation."""
+    try:
+        payload = await decode_token_async(access_token, expected_type="access")
+    except ValueError as exc:
+        raise AuthServiceError(str(exc), 401) from exc
+
+    user_id = str(payload["sub"])
+    credential = (
+        db.query(LocalAuthCredential)
+        .filter(LocalAuthCredential.user_id == user_id)
+        .first()
+    )
+    if not credential:
+        raise AuthServiceError("usuario no encontrado", 404)
+
+    return _build_user_payload(credential)

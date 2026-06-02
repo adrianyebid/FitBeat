@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -7,7 +8,10 @@ import jwt
 from cryptography.fernet import Fernet
 from jwt import ExpiredSignatureError, InvalidTokenError
 
+from src.core.cache import cache_token_validation, get_cached_token_validation
 from src.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 PASSWORD_ALGORITHM = "pbkdf2_sha256"
@@ -119,4 +123,58 @@ def decode_token(token: str, expected_type: str) -> dict[str, Any]:
     user_id = payload.get("sub")
     if token_type != expected_type or not user_id:
         raise ValueError("invalid token payload")
+    return payload
+
+
+async def decode_token_async(token: str, expected_type: str) -> dict[str, Any]:
+    """
+    Async version of decode_token with Redis caching.
+    
+    First checks Redis cache for previously validated token.
+    On cache miss, performs JWT decode and caches result with TTL.
+    
+    Args:
+        token: JWT token string
+        expected_type: Expected token type ("access" or "refresh")
+    
+    Returns:
+        Decoded token payload dict
+    
+    Raises:
+        ValueError: If token is invalid, expired, or type mismatch
+    """
+    # Check cache first (< 1ms if hit)
+    cached_payload = await get_cached_token_validation(token)
+    if cached_payload and cached_payload.get("type") == expected_type:
+        logger.debug(f"Token cache hit for type={expected_type}")
+        return cached_payload
+    
+    # Cache miss: decode JWT normally
+    try:
+        payload = jwt.decode(
+            token,
+            settings.JWT_SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM],
+        )
+    except ExpiredSignatureError as exc:
+        raise ValueError("token expired") from exc
+    except InvalidTokenError as exc:
+        raise ValueError("invalid token") from exc
+
+    # Validate token type and structure
+    token_type = payload.get("type")
+    user_id = payload.get("sub")
+    if token_type != expected_type or not user_id:
+        raise ValueError("invalid token payload")
+    
+    # Cache result for future requests (TTL = time until token expiration)
+    try:
+        exp_timestamp = payload.get("exp")
+        if exp_timestamp:
+            now_timestamp = datetime.now(timezone.utc).timestamp()
+            ttl_seconds = max(int(exp_timestamp - now_timestamp), 1)
+            await cache_token_validation(token, payload, ttl_seconds)
+    except Exception as e:
+        logger.warning(f"Failed to cache token: {e}")
+    
     return payload

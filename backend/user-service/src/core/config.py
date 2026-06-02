@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     # Encryption (futura mitigacion en reposo)
     ENCRYPTION_KEY: str = ""
 
+    # Redis cache for JWT token validation
+    REDIS_URL: str = "redis://localhost:6379/0"
+
     # Local auth (JWT de la aplicacion)
     JWT_SECRET_KEY: str = "change-this-in-production"
     JWT_ALGORITHM: str = "HS256"
@@ -38,6 +41,11 @@ class Settings(BaseSettings):
     def effective_internal_secret(self) -> str:
         """Returns FITBEAT_INTERNAL_SECRET with fallback to INTERNAL_SERVICE_TOKEN."""
         return self.FITBEAT_INTERNAL_SECRET or self.INTERNAL_SERVICE_TOKEN
+
+    @property
+    def redis_url(self) -> str:
+        """Returns Redis connection URL from environment."""
+        return self.REDIS_URL
 
     model_config = SettingsConfigDict(
         env_file=".env",
