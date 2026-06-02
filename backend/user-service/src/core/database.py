@@ -4,7 +4,13 @@ from src.core.config import settings
 
 # 1. El Motor (Engine): Es el puente de comunicación. 
 # Toma la URL del .env  y traduce las consultas de Python a PostgreSQL.
-engine = create_engine(settings.DATABASE_URL)
+engine = create_engine(
+    settings.DATABASE_URL,
+    pool_size=20,
+    max_overflow=40,
+    pool_timeout=30,
+    pool_pre_ping=True,
+)
 
 # 2. La Fábrica de Sesiones: Cada vez que un usuario haga una petición (ej. registrarse),
 # esto creará una conexión fresca y aislada hacia la base de datos.

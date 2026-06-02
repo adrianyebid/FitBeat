@@ -187,14 +187,6 @@
       }]
     },
     {
-      "endpoint": "/auth/internal/token/{user_id}",
-      "method": "GET",
-      "output_encoding": "no-op",
-      "input_headers": ["*"],
-      "input_query_strings": ["*"],
-      "backend": [{"url_pattern": "/auth/internal/token/{user_id}", "host": ["http://component_a:8000"], "encoding": "no-op"}]
-    },
-    {
       "endpoint": "/users",
       "method": "POST",
       "output_encoding": "no-op",

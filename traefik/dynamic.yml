@@ -87,13 +87,17 @@ http:
     user-service-svc:
       loadBalancer:
         servers:
-          - url: "http://component_a:8000"
+          - url: "http://component_a_1:8000"
+          - url: "http://component_a_2:8000"
+          - url: "http://component_a_3:8000"
 
     # Music service — directo para WebSocket (KrakenD no soporta WS upgrade)
     music-service-svc:
       loadBalancer:
         servers:
-          - url: "http://music_service:8081"
+          - url: "http://music_service_1:8081"
+          - url: "http://music_service_2:8081"
+          - url: "http://music_service_3:8081"
 
 tls:
   certificates:

@@ -24,6 +24,7 @@ services:
       - ./laboratory-5/certs:/etc/traefik/certs:ro
     networks:
       - gateway_network
+      - api_gateway_net
     restart: always
 
   # ─────────────── Base de Datos Relacional (Componente A) ───────────────
@@ -426,7 +427,7 @@ services:
       interval: 10s
       timeout: 3s
       retries: 10
-      start_period: 10s
+      start_period: 30s
     networks:
       - api_gateway_net
       - achievements_db_net
@@ -468,7 +469,7 @@ services:
       interval: 10s
       timeout: 3s
       retries: 10
-      start_period: 10s
+      start_period: 30s
     networks:
       - api_gateway_net
       - achievements_db_net
@@ -511,7 +512,7 @@ services:
       interval: 10s
       timeout: 3s
       retries: 10
-      start_period: 10s
+      start_period: 30s
     networks:
       - api_gateway_net
       - achievements_db_net
