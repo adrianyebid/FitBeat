@@ -1,12 +1,17 @@
 package config
 
-import "os"
+import (
+	"os"
+	"strconv"
+	"time"
+)
 
 // Config contiene la configuración del servicio
 type Config struct {
 	Port           string
 	CouchDBAddr    string // user:pass@host:port (HTTP REST API de CouchDB)
 	InternalSecret string // FITBEAT_INTERNAL_SECRET for S2S auth
+	SpotifyTimeout time.Duration
 	Events         EventsConfig
 }
 
@@ -46,10 +51,18 @@ func Load() *Config {
 		source = "music-service"
 	}
 
+	spotifyTimeoutSeconds := 3
+	if raw := os.Getenv("SPOTIFY_HTTP_TIMEOUT_SECONDS"); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+			spotifyTimeoutSeconds = parsed
+		}
+	}
+
 	return &Config{
 		Port:           port,
 		CouchDBAddr:    couchAddr,
 		InternalSecret: os.Getenv("FITBEAT_INTERNAL_SECRET"),
+		SpotifyTimeout: time.Duration(spotifyTimeoutSeconds) * time.Second,
 		Events: EventsConfig{
 			Enabled:      eventsEnabled,
 			RabbitURL:    rabbitURL,

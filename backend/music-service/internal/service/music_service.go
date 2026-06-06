@@ -1,7 +1,9 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -25,6 +27,8 @@ var (
 	spotifySearchURL = envOrDefault("SPOTIFY_SEARCH_URL", "https://api.spotify.com/v1/search")
 	spotifyQueueURL  = envOrDefault("SPOTIFY_QUEUE_URL", "https://api.spotify.com/v1/me/player/queue")
 )
+
+var ErrExternalTimeout = errors.New("external service timeout")
 
 func envOrDefault(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
@@ -57,11 +61,15 @@ type EngineService struct {
 	idCounter  uint64
 }
 
-func NewEngineService(repo repository.EngineRepository, publisher events.Publisher, _ string) *EngineService {
+func NewEngineService(repo repository.EngineRepository, publisher events.Publisher, timeout time.Duration) *EngineService {
+	if timeout <= 0 {
+		timeout = 3 * time.Second
+	}
+
 	return &EngineService{
 		repo:       repo,
 		publisher:  publisher,
-		httpClient: &http.Client{},
+		httpClient: &http.Client{Timeout: timeout},
 	}
 }
 
@@ -253,6 +261,9 @@ func (s *EngineService) enqueueSpotifyTrack(token, deviceID, uri string) error {
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
+		if isTimeoutError(err) {
+			return fmt.Errorf("%w: spotify queue request exceeded %s", ErrExternalTimeout, s.httpClient.Timeout)
+		}
 		return fmt.Errorf("failed to reach Spotify queue")
 	}
 	defer resp.Body.Close()
@@ -284,6 +295,9 @@ func (s *EngineService) searchSpotifyTrack(token, activityType, genre, category 
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
+		if isTimeoutError(err) {
+			return nil, fmt.Errorf("%w: spotify search request exceeded %s", ErrExternalTimeout, s.httpClient.Timeout)
+		}
 		return nil, fmt.Errorf("failed to reach Spotify")
 	}
 	defer resp.Body.Close()
@@ -328,4 +342,13 @@ func (s *EngineService) publishSessionStarted(session model.TrainingSession) err
 	}
 
 	return s.publisher.Publish("session.started", payload)
+}
+
+func isTimeoutError(err error) bool {
+	var netErr interface{ Timeout() bool }
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+
+	return errors.Is(err, context.DeadlineExceeded)
 }

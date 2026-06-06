@@ -35,7 +35,7 @@ func main() {
 	}
 	defer publisher.Close()
 
-	engineService := service.NewEngineService(engineRepository, publisher, cfg.Events.Source)
+	engineService := service.NewEngineService(engineRepository, publisher, cfg.SpotifyTimeout)
 
 	handler.RegisterRoutes(r, engineService, cfg.InternalSecret)
 

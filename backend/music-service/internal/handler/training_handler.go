@@ -87,6 +87,15 @@ func (h *TrainingHandler) CreateSession(c *gin.Context) {
 		log.Printf("[CreateSession] error: %v", err)
 		errMsg := err.Error()
 		switch {
+		case errors.Is(err, service.ErrExternalTimeout):
+			c.JSON(
+				http.StatusGatewayTimeout,
+				errorResponse(
+					"external dependency timeout",
+					[]string{"Spotify tardó más del máximo configurado; intenta nuevamente."},
+				),
+			)
+			return
 		case strings.Contains(errMsg, "spotify queue returned 404"):
 			c.JSON(
 				http.StatusConflict,
