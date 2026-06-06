@@ -14,7 +14,7 @@ from src.auth.application.services import (
 )
 from src.core.config import settings
 from src.core.database import get_db
-from src.core.security import decode_token
+from src.core.security import decode_token, decode_token_async
 
 
 auth_router = APIRouter(prefix="/auth", tags=["Auth - Spotify OAuth"])
@@ -92,7 +92,7 @@ def spotify_now_playing(user_id: str, db: Session = Depends(get_db)):
         "X-Internal-Token para trafico inter-servicios."
     ),
 )
-def get_token_for_component_b(
+async def get_token_for_component_b(
     user_id: str,
     db: Session = Depends(get_db),
     authorization: str | None = Header(default=None),
@@ -110,7 +110,7 @@ def get_token_for_component_b(
     if not authorized:
         access_token = _extract_bearer_token(authorization)
         try:
-            payload = decode_token(access_token, expected_type="access")
+            payload = await decode_token_async(access_token, expected_type="access")
         except ValueError as exc:
             raise HTTPException(status_code=401, detail=str(exc)) from exc
 

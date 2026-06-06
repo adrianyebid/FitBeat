@@ -1,0 +1,101 @@
+# ===================================================================
+# Docker Compose — FitBeat Scaling Patterns (Horizontal Scaling Demo)
+# ===================================================================
+# 
+# This configuration demonstrates the Load Balancer Pattern from Laboratory 7,
+# adapted to the FitBeat microservices architecture.
+# 
+# Key concepts:
+# 1. Horizontal Scaling: Three identical replicas of a stateless service.
+# 2. Load Balancing: Nginx distributes incoming requests across replicas.
+# 3. Instance Identification: Each response shows which replica handled the request.
+# 
+# Usage:
+#   Start with Round Robin (default):
+#     docker-compose -f docker-compose-scaling.yml up --build -d
+#
+#   Switch to Least Connections:
+#     Edit the volumes mount for load-balancer service
+#     - Change: ./nginx/nginx.round-robin.conf → ./nginx/nginx.least-conn.conf
+#     - Then: docker-compose -f docker-compose-scaling.yml up -d --no-deps load-balancer
+#
+#   Switch to IP Hash:
+#     Edit the volumes mount for load-balancer service
+#     - Change: ./nginx/nginx.round-robin.conf → ./nginx/nginx.ip-hash.conf
+#     - Then: docker-compose -f docker-compose-scaling.yml up -d --no-deps load-balancer
+#
+# Testing:
+#   Single request:
+#     curl -s http://localhost/api/workout-session | python3 -m json.tool
+#
+#   Multiple requests (observe distribution):
+#     for i in {1..9}; do
+#       curl -s http://localhost/api/workout-session | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['instance'])"
+#     done
+# ===================================================================
+
+version: "3.9"
+
+services:
+  # ─────────────── Scalable Backend Replicas (Horizontal Scaling) ───────────────
+  # Three identical, stateless replicas. Each runs on port 5000 internally,
+  # but the load balancer routes external traffic to only one of them at a time.
+  
+  replica_1:
+    build: ./backend
+    container_name: fitbeat_replica_1
+    environment:
+      PORT: "5000"
+    networks:
+      - fitbeat_replicas_net
+    # No ports exposed: unreachable directly from host.
+    # Only the load balancer can reach this replica.
+    restart: always
+
+  replica_2:
+    build: ./backend
+    container_name: fitbeat_replica_2
+    environment:
+      PORT: "5000"
+    networks:
+      - fitbeat_replicas_net
+    restart: always
+
+  replica_3:
+    build: ./backend
+    container_name: fitbeat_replica_3
+    environment:
+      PORT: "5000"
+    networks:
+      - fitbeat_replicas_net
+    restart: always
+
+  # ─────────────── Load Balancer (Nginx) ───────────────
+  # Single entry point. Distributes incoming requests across the three replicas
+  # according to the configured algorithm (Round Robin, Least Connections, or IP Hash).
+  
+  load-balancer:
+    image: nginx:alpine
+    container_name: fitbeat_load_balancer
+    ports:
+      - "80:80"
+    volumes:
+      # Mount one configuration at a time. Start with round-robin.
+      # To switch algorithms:
+      #   1. Change the path below (e.g., to ./nginx/nginx.least-conn.conf)
+      #   2. Recreate only the load-balancer: docker-compose -f docker-compose-scaling.yml up -d --no-deps load-balancer
+      - ./nginx/nginx.round-robin.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - fitbeat_replicas_net
+    depends_on:
+      - replica_1
+      - replica_2
+      - replica_3
+    restart: always
+
+# ─────────────── Networks ───────────────
+networks:
+  # Isolated internal network for replicas and load balancer.
+  # Replicas are not exposed to the host network; only the load balancer listens on port 80.
+  fitbeat_replicas_net:
+    driver: bridge

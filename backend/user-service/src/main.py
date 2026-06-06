@@ -1,8 +1,8 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from src.auth.infrastructure.local_auth_router import local_auth_router
 from src.auth.infrastructure.routers import auth_router
+from src.core import cache
 from src.core.config import settings
 from src.core.database import Base, engine
 from src.users.infrastructure.routers import user_router
@@ -19,20 +19,34 @@ app = FastAPI(
     version="1.1.0",
 )
 
-allowed_origins = ["http://localhost:5173", settings.FRONTEND_APP_URL]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=list(dict.fromkeys(allowed_origins)),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 app.include_router(user_router)
 app.include_router(auth_router)
 app.include_router(local_auth_router)
 
 
+@app.on_event("startup")
+async def startup_event():
+    """Initialize Redis cache on startup."""
+    await cache.init_redis(settings.redis_url)
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Close Redis cache on shutdown."""
+    await cache.close_redis()
+
+
 @app.get("/")
 def read_root():
     return {"status": "Componente A funcionando"}
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint with cache statistics."""
+    cache_stats = await cache.get_cache_stats()
+    return {
+        "status": "healthy",
+        "component": "Componente A (User Service)",
+        "cache": cache_stats,
+    }

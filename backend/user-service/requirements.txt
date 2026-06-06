@@ -9,3 +9,5 @@ PyJWT
 requests
 python-dotenv
 cryptography
+redis
+aioredis

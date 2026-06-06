@@ -1,6 +1,35 @@
 http:
   routers:
-    # ── API Gateway (todo el tráfico de backend va a KrakenD) ──────────────
+    # ── WebSocket: va DIRECTO al music service (KrakenD no soporta WS upgrade) ──
+    ws-http:
+      entryPoints:
+        - web
+      rule: Path(`/api/v1/ws`)
+      service: music-service-svc
+      priority: 20
+
+    # ── OAuth Spotify: login y callback van DIRECTO a FastAPI (prioridad alta) ──
+    # KrakenD no pasa redirects 3xx al browser — estos endpoints los necesitan.
+    oauth-http:
+      entryPoints:
+        - web
+      rule: >-
+        PathPrefix(`/auth/login`) ||
+        PathPrefix(`/auth/callback`)
+      service: user-service-svc
+      priority: 20
+
+    oauth-https:
+      entryPoints:
+        - websecure
+      rule: >-
+        PathPrefix(`/auth/login`) ||
+        PathPrefix(`/auth/callback`)
+      service: user-service-svc
+      priority: 20
+      tls: {}
+
+    # ── API Gateway (resto del tráfico va a KrakenD) ──────────────────────────
     api-http:
       entryPoints:
         - web
@@ -48,11 +77,27 @@ http:
         accessControlMaxAge: 43200
 
   services:
-    # KrakenD es el único backend que Traefik conoce para las APIs
+    # KrakenD — API gateway para llamadas JSON del frontend
     api-gateway-svc:
       loadBalancer:
         servers:
           - url: "http://krakend:8085"
+
+    # FastAPI user-service — directo para flujos OAuth (necesitan redirects reales)
+    user-service-svc:
+      loadBalancer:
+        servers:
+          - url: "http://component_a_1:8000"
+          - url: "http://component_a_2:8000"
+          - url: "http://component_a_3:8000"
+
+    # Music service — directo para WebSocket (KrakenD no soporta WS upgrade)
+    music-service-svc:
+      loadBalancer:
+        servers:
+          - url: "http://music_service_1:8081"
+          - url: "http://music_service_2:8081"
+          - url: "http://music_service_3:8081"
 
 tls:
   certificates:
