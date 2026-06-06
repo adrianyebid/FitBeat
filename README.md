@@ -548,6 +548,7 @@ From these results, the practical knee moves from around **200 VUs** (baseline) 
   **Timeout Pattern** in `music-service`: outbound Spotify calls are bounded with `SPOTIFY_HTTP_TIMEOUT_SECONDS` (default 3s). If timeout is reached, the service returns a controlled `504 Gateway Timeout` with message `external dependency timeout`.
 
 ![Timeout Pattern test evidence](./images/p4/testTimeoutPattern.png)
+
 Description: the timeout test was executed by forcing delayed Spotify responses; the API returned the expected controlled timeout response, validating the pattern behavior.
 
 #### Applied architectural tactics
