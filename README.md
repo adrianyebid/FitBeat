@@ -539,7 +539,23 @@ From these results, the practical knee moves from around **200 VUs** (baseline) 
 
 ##### Scenario 4 - Timeout Pattern
 
-![Circuit Breaker Pattern](./images/p4/timeoutPattern.png)
+![Timeout Pattern](./images/p4/timeoutPattern.png)
+
+- **Weakness:**
+  `music-service` depends on synchronous Spotify calls during session creation; slow external responses can propagate latency.
+
+- **Countermeasure:**
+  **Timeout Pattern** in `music-service`: outbound Spotify calls are bounded with `SPOTIFY_HTTP_TIMEOUT_SECONDS` (default 3s). If timeout is reached, the service returns a controlled `504 Gateway Timeout` with message `external dependency timeout`.
+
+![Timeout Pattern test evidence](./images/p4/testTimeoutPattern.png)
+Description: the timeout test was executed by forcing delayed Spotify responses; the API returned the expected controlled timeout response, validating the pattern behavior.
 
 #### Applied architectural tactics
+- **Detect and constrain slow dependencies:** external calls use explicit timeout limits.
+- **Fail fast:** requests stop waiting when dependency latency exceeds the configured threshold.
+- **Degrade gracefully:** the API returns a controlled and consistent `504` error response.
+
 #### Applied architectural patterns
+- **Timeout Pattern:** implemented in outbound HTTP integration from `music-service` to Spotify.
+- **Fail-Fast Strategy:** avoids indefinite waits and thread/resource blocking.
+- **Defensive Integration Boundary:** dependency timeout is mapped to a stable API contract.
