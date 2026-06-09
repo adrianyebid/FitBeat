@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: music-service
+  namespace: fitbeat
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: music-service
+  template:
+    metadata:
+      labels:
+        app: music-service
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values: ["music-service"]
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+      - name: music-service
+        image: kguzmand/fitbeat-music-service:latest
+        ports:
+        - containerPort: 8081
+        env:
+        - name: PORT
+          value: "8081"
+        - name: COUCHDB_ADDR
+          value: "admin:secret@couchdb-service:5984"
+        - name: RABBITMQ_URL
+          value: "amqp://guest:guest@rabbitmq-service:5672/"
+        - name: INSTANCE_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: music-service
+  namespace: fitbeat
+spec:
+  type: NodePort
+  selector:
+    app: music-service
+  ports:
+  - port: 8081
+    targetPort: 8081
+    nodePort: 30082

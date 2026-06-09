@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: component-deployment
+  # Replication: 4 instancias idénticas ejecutándose simultáneamente
+  # Todas están "hot", ninguna es primaria o standby
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: reliability-component
+  template:
+    metadata:
+      labels:
+        app: reliability-component
+    spec:
+      affinity:
+        podAntiAffinity:
+          # Fomentar que los pods se distribuyan en diferentes nodos (Hot Spare)
+          # 'preferred' no bloquea el scheduling si solo hay un nodo disponible
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values: ["reliability-component"]
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+      - name: component
+        image: kguzmand/fitbeat-reference:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: INSTANCE_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
