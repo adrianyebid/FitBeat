@@ -2,7 +2,7 @@
 # Docker Compose — Prototype 2 (Componentes A+B+C+D)
 # ===================================================================
 
-name: prototype_2
+name: prototype_4
 
 services:
   traefik:
@@ -27,7 +27,7 @@ services:
       - api_gateway_net
     restart: always
 
-  # ─────────────── Base de Datos Relacional (Componente A) ───────────────
+  # ─────────────── Base de Datos Relacional (Componente A) — PRIMARY ───────────────
   postgres_db:
     image: postgres:15-alpine
     container_name: fb_users_db
@@ -41,11 +41,67 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./warm-spare/pg-primary-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h 127.0.0.1 -p 5432"]
       interval: 5s
       timeout: 3s
       retries: 10
+    networks:
+      - users_db_net
+    restart: always
+
+  # ─────────────── Base de Datos Relacional (Componente A) — WARM SPARE ───────────────
+  postgres_db_standby:
+    image: postgres:15-alpine
+    container_name: fb_users_db_standby
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGDATA: /var/lib/postgresql/data
+      PRIMARY_HOST: postgres_db
+      REPL_USER: replicator
+      REPL_PASSWORD: replicator_pass
+    entrypoint: ["/bin/sh", "/warm-spare/pg-standby-entrypoint.sh"]
+    volumes:
+      - postgres_standby_data:/var/lib/postgresql/data
+      - ./warm-spare/pg-standby-entrypoint.sh:/warm-spare/pg-standby-entrypoint.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h 127.0.0.1 -p 5432"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 40s
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    networks:
+      - users_db_net
+    restart: always
+
+  # ─────────────── Warm Spare Watchdog — Automatic Failover ───────────────
+  db_watchdog:
+    image: postgres:15-alpine
+    container_name: fb_auth_db_watchdog
+    entrypoint: ["/bin/sh", "/warm-spare/watchdog.sh"]
+    environment:
+      PRIMARY_HOST: postgres_db
+      STANDBY_HOST: postgres_db_standby
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      CHECK_INTERVAL: "5"
+      FAILURE_THRESHOLD: "3"
+    volumes:
+      - ./warm-spare/watchdog.sh:/warm-spare/watchdog.sh:ro
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      postgres_db_standby:
+        condition: service_healthy
     networks:
       - users_db_net
     restart: always
@@ -90,7 +146,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432,postgres_db_standby:5432/${POSTGRES_DB}?target_session_attrs=read-write&connect_timeout=5
       REDIS_URL: redis://redis_cache:6379/0
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
@@ -118,7 +174,7 @@ services:
     container_name: fb_users_ms_2
     command: uvicorn src.main:app --host 0.0.0.0 --port 8000
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432,postgres_db_standby:5432/${POSTGRES_DB}?target_session_attrs=read-write&connect_timeout=5
       REDIS_URL: redis://redis_cache:6379/0
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
@@ -146,7 +202,7 @@ services:
     container_name: fb_users_ms_3
     command: uvicorn src.main:app --host 0.0.0.0 --port 8000
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432,postgres_db_standby:5432/${POSTGRES_DB}?target_session_attrs=read-write&connect_timeout=5
       REDIS_URL: redis://redis_cache:6379/0
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
@@ -802,6 +858,7 @@ networks:
 # ─────────────── Volúmenes Persistentes ─────────────
 volumes:
   postgres_data:
+  postgres_standby_data:
   redis_cache_data:
   couchdb_data:
   event_processor_data:

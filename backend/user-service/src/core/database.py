@@ -1,11 +1,25 @@
+import psycopg2
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from src.core.config import settings
 
-# 1. El Motor (Engine): Es el puente de comunicación. 
-# Toma la URL del .env  y traduce las consultas de Python a PostgreSQL.
+
+def _make_connection():
+    """
+    Creates a raw psycopg2 connection using the DATABASE_URL directly.
+    This allows libpq to handle multi-host URLs transparently
+    (e.g. @primary:5432,standby:5432/?target_session_attrs=read-write)
+    without SQLAlchemy URL parsing interfering.
+    """
+    return psycopg2.connect(settings.DATABASE_URL)
+
+
+# 1. El Motor (Engine): Es el puente de comunicación.
+# Usa un creator personalizado para que libpq maneje el multi-host del Warm Spare.
+# pool_pre_ping invalida conexiones muertas y fuerza reconexión al standby promovido.
 engine = create_engine(
-    settings.DATABASE_URL,
+    "postgresql+psycopg2://",
+    creator=_make_connection,
     pool_size=20,
     max_overflow=40,
     pool_timeout=30,
