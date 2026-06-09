@@ -4,6 +4,7 @@ from src.auth.infrastructure.local_auth_router import local_auth_router
 from src.auth.infrastructure.routers import auth_router
 from src.core import cache
 from src.core.config import settings
+from src.core.consul_client import deregister, register
 from src.core.database import Base, engine
 from src.users.infrastructure.routers import user_router
 
@@ -26,13 +27,25 @@ app.include_router(local_auth_router)
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize Redis cache on startup."""
+    """Initialize Redis cache and register in Consul on startup."""
     await cache.init_redis(settings.redis_url)
+    if settings.CONSUL_ADDR and settings.INSTANCE_HOST:
+        register(
+            consul_addr=settings.CONSUL_ADDR,
+            instance_id=settings.INSTANCE_ID,
+            instance_host=settings.INSTANCE_HOST,
+            port=settings.SERVICE_PORT,
+        )
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Close Redis cache on shutdown."""
+    """Deregister from Consul and close Redis cache on shutdown."""
+    if settings.CONSUL_ADDR and settings.INSTANCE_HOST:
+        deregister(
+            consul_addr=settings.CONSUL_ADDR,
+            instance_id=settings.INSTANCE_ID,
+        )
     await cache.close_redis()
 
 

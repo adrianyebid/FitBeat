@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     INTERNAL_SERVICE_TOKEN: str = ""
     FITBEAT_INTERNAL_SECRET: str = ""
 
+    # Service Discovery — Consul
+    CONSUL_ADDR: str = ""           # e.g. "consul:8500"  (empty = discovery disabled)
+    INSTANCE_HOST: str = ""         # Docker hostname of this container, e.g. "fb_users_ms_1"
+    INSTANCE_ID: str = ""           # Unique ID for this replica, e.g. "user-service-1"
+    SERVICE_PORT: int = 8000
+
     @property
     def effective_internal_secret(self) -> str:
         """Returns FITBEAT_INTERNAL_SECRET with fallback to INTERNAL_SERVICE_TOKEN."""

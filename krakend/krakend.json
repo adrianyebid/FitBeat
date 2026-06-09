@@ -25,11 +25,7 @@
       "input_query_strings": ["*"],
       "backend": [{
         "url_pattern": "/api/auth/register",
-        "host": [
-          "http://component_a_1:8000",
-          "http://component_a_2:8000",
-          "http://component_a_3:8000"
-        ],
+        "host": ["http://component_a_1:8000","http://component_a_2:8000","http://component_a_3:8000"],
         "encoding": "no-op",
         "sd": "static"
       }]
@@ -42,11 +38,19 @@
       "input_query_strings": ["*"],
       "backend": [{
         "url_pattern": "/api/auth/login",
-        "host": [
-          "http://component_a_1:8000",
-          "http://component_a_2:8000",
-          "http://component_a_3:8000"
-        ],
+        "host": ["http://component_a_1:8000","http://component_a_2:8000","http://component_a_3:8000"],
+        "encoding": "no-op",
+        "sd": "static"
+      }]
+    },
+    {
+      "endpoint": "/api/auth/instances",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [{
+        "url_pattern": "/api/auth/instances",
+        "host": ["http://component_a_1:8000"],
         "encoding": "no-op",
         "sd": "static"
       }]
@@ -59,11 +63,7 @@
       "input_query_strings": ["*"],
       "backend": [{
         "url_pattern": "/api/auth/refresh",
-        "host": [
-          "http://component_a_1:8000",
-          "http://component_a_2:8000",
-          "http://component_a_3:8000"
-        ],
+        "host": ["http://component_a_1:8000","http://component_a_2:8000","http://component_a_3:8000"],
         "encoding": "no-op",
         "sd": "static"
       }]
@@ -76,11 +76,7 @@
       "input_query_strings": ["*"],
       "backend": [{
         "url_pattern": "/api/auth/me",
-        "host": [
-          "http://component_a_1:8000",
-          "http://component_a_2:8000",
-          "http://component_a_3:8000"
-        ],
+        "host": ["http://component_a_1:8000","http://component_a_2:8000","http://component_a_3:8000"],
         "encoding": "no-op",
         "sd": "static"
       }]
@@ -93,20 +89,12 @@
       "input_query_strings": ["*"],
       "backend": [{
         "url_pattern": "/auth/login/{user_id}",
-        "host": [
-          "http://component_a_1:8000",
-          "http://component_a_2:8000",
-          "http://component_a_3:8000"
-        ],
+        "host": ["http://component_a_1:8000","http://component_a_2:8000","http://component_a_3:8000"],
         "encoding": "no-op",
         "sd": "static",
         "extra_config": {
-          "backend/http/client": {
-            "no_redirect": true
-          },
-          "github.com/devopsfaith/krakend/http/client": {
-            "no_redirect": true
-          }
+          "backend/http/client": { "no_redirect": true },
+          "github.com/devopsfaith/krakend/http/client": { "no_redirect": true }
         }
       }]
     },
@@ -118,20 +106,12 @@
       "input_query_strings": ["*"],
       "backend": [{
         "url_pattern": "/auth/callback",
-        "host": [
-          "http://component_a_1:8000",
-          "http://component_a_2:8000",
-          "http://component_a_3:8000"
-        ],
+        "host": ["http://component_a_1:8000","http://component_a_2:8000","http://component_a_3:8000"],
         "encoding": "no-op",
         "sd": "static",
         "extra_config": {
-          "backend/http/client": {
-            "no_redirect": true
-          },
-          "github.com/devopsfaith/krakend/http/client": {
-            "no_redirect": true
-          }
+          "backend/http/client": { "no_redirect": true },
+          "github.com/devopsfaith/krakend/http/client": { "no_redirect": true }
         }
       }]
     },
@@ -143,11 +123,7 @@
       "input_query_strings": ["*"],
       "backend": [{
         "url_pattern": "/auth/internal/token/{user_id}",
-        "host": [
-          "http://component_a_1:8000",
-          "http://component_a_2:8000",
-          "http://component_a_3:8000"
-        ],
+        "host": ["http://component_a_1:8000","http://component_a_2:8000","http://component_a_3:8000"],
         "encoding": "no-op",
         "sd": "static"
       }]
@@ -160,11 +136,7 @@
       "input_query_strings": ["*"],
       "backend": [{
         "url_pattern": "/auth/verify-connection/{user_id}",
-        "host": [
-          "http://component_a_1:8000",
-          "http://component_a_2:8000",
-          "http://component_a_3:8000"
-        ],
+        "host": ["http://component_a_1:8000","http://component_a_2:8000","http://component_a_3:8000"],
         "encoding": "no-op",
         "sd": "static"
       }]
@@ -177,11 +149,7 @@
       "input_query_strings": ["*"],
       "backend": [{
         "url_pattern": "/auth/now-playing/{user_id}",
-        "host": [
-          "http://component_a_1:8000",
-          "http://component_a_2:8000",
-          "http://component_a_3:8000"
-        ],
+        "host": ["http://component_a_1:8000","http://component_a_2:8000","http://component_a_3:8000"],
         "encoding": "no-op",
         "sd": "static"
       }]
@@ -194,11 +162,7 @@
       "input_query_strings": ["*"],
       "backend": [{
         "url_pattern": "/users/",
-        "host": [
-          "http://component_a_1:8000",
-          "http://component_a_2:8000",
-          "http://component_a_3:8000"
-        ],
+        "host": ["http://component_a_1:8000","http://component_a_2:8000","http://component_a_3:8000"],
         "encoding": "no-op",
         "sd": "static"
       }]
@@ -211,11 +175,7 @@
       "input_query_strings": ["*"],
       "backend": [{
         "url_pattern": "/users/{user_id}",
-        "host": [
-          "http://component_a_1:8000",
-          "http://component_a_2:8000",
-          "http://component_a_3:8000"
-        ],
+        "host": ["http://component_a_1:8000","http://component_a_2:8000","http://component_a_3:8000"],
         "encoding": "no-op",
         "sd": "static"
       }]
@@ -228,11 +188,7 @@
       "input_query_strings": ["*"],
       "backend": [{
         "url_pattern": "/users/{user_id}/music-preferences",
-        "host": [
-          "http://component_a_1:8000",
-          "http://component_a_2:8000",
-          "http://component_a_3:8000"
-        ],
+        "host": ["http://component_a_1:8000","http://component_a_2:8000","http://component_a_3:8000"],
         "encoding": "no-op",
         "sd": "static"
       }]

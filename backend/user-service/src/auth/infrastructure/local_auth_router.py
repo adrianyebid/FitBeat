@@ -15,6 +15,7 @@ from src.auth.application.local_auth_service import (
     register_local_user,
 )
 from src.core.config import settings
+from src.core.consul_client import get_instances
 from src.auth.domain.schemas import (
     AuthResponse,
     AuthUserResponse,
@@ -118,3 +119,29 @@ def get_user_contact(
         return get_user_contact_by_id(db, user_id=user_id)
     except AuthServiceError as exc:
         return _error_response(exc.message, exc.status_code)
+
+
+@local_auth_router.get("/instances", tags=["Service Discovery"])
+def list_instances():
+    """
+    Service Discovery — returns the list of healthy user-service instances
+    currently registered in Consul.
+
+    Use this endpoint to verify the pattern:
+      - All 3 instances running  → healthy_instances: 3
+      - One instance stopped     → healthy_instances: 2  (after ~15s)
+      - Instance restarted       → healthy_instances: 3  (after ~15s)
+    """
+    if not settings.CONSUL_ADDR:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Service discovery not configured (CONSUL_ADDR is empty)"},
+        )
+
+    instances = get_instances(settings.CONSUL_ADDR)
+    healthy = [i for i in instances if i["status"] == "passing"]
+    return {
+        "service": "user-service",
+        "healthy_instances": len(healthy),
+        "instances": instances,
+    }

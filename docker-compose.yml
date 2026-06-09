@@ -106,6 +106,22 @@ services:
       - users_db_net
     restart: always
 
+  # ─────────────── Service Discovery (Consul) ───────────────
+  consul:
+    image: consul:1.15
+    container_name: fb_consul
+    command: agent -server -bootstrap-expect=1 -ui -client=0.0.0.0
+    ports:
+      - "8500:8500"
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - api_gateway_net
+    restart: always
+
   # ─────────────── Spotify Mock (para pruebas de rendimiento) ───────────────
   spotify_mock:
     build: ./performance-tests/spotify-mock
@@ -156,10 +172,15 @@ services:
       SPOTIFY_ME_URL: ${SPOTIFY_ME_URL:-https://api.spotify.com/v1/me}
       SPOTIFY_NOW_PLAYING_URL: ${SPOTIFY_NOW_PLAYING_URL:-https://api.spotify.com/v1/me/player/currently-playing}
       INSTANCE_ID: "user-service-1"
+      CONSUL_ADDR: "consul:8500"
+      INSTANCE_HOST: "fb_users_ms_1"
+      SERVICE_PORT: "8000"
     depends_on:
       postgres_db:
         condition: service_healthy
       redis_cache:
+        condition: service_healthy
+      consul:
         condition: service_healthy
     networks:
       - api_gateway_net
@@ -184,10 +205,15 @@ services:
       SPOTIFY_ME_URL: ${SPOTIFY_ME_URL:-https://api.spotify.com/v1/me}
       SPOTIFY_NOW_PLAYING_URL: ${SPOTIFY_NOW_PLAYING_URL:-https://api.spotify.com/v1/me/player/currently-playing}
       INSTANCE_ID: "user-service-2"
+      CONSUL_ADDR: "consul:8500"
+      INSTANCE_HOST: "fb_users_ms_2"
+      SERVICE_PORT: "8000"
     depends_on:
       postgres_db:
         condition: service_healthy
       redis_cache:
+        condition: service_healthy
+      consul:
         condition: service_healthy
     networks:
       - api_gateway_net
@@ -212,10 +238,15 @@ services:
       SPOTIFY_ME_URL: ${SPOTIFY_ME_URL:-https://api.spotify.com/v1/me}
       SPOTIFY_NOW_PLAYING_URL: ${SPOTIFY_NOW_PLAYING_URL:-https://api.spotify.com/v1/me/player/currently-playing}
       INSTANCE_ID: "user-service-3"
+      CONSUL_ADDR: "consul:8500"
+      INSTANCE_HOST: "fb_users_ms_3"
+      SERVICE_PORT: "8000"
     depends_on:
       postgres_db:
         condition: service_healthy
       redis_cache:
+        condition: service_healthy
+      consul:
         condition: service_healthy
     networks:
       - gateway_network
@@ -730,11 +761,11 @@ services:
       music_service_3:
         condition: service_started
       achievements_service_1:
-        condition: service_healthy
+        condition: service_started
       achievements_service_2:
-        condition: service_healthy
+        condition: service_started
       achievements_service_3:
-        condition: service_healthy
+        condition: service_started
       notification_service_1:
         condition: service_started
       notification_service_2:
