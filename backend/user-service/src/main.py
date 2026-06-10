@@ -50,8 +50,8 @@ async def shutdown_event():
 
 
 @app.get("/")
-def read_root():
-    return {"status": "Componente A funcionando"}
+async def root_health_check():
+    return {"status": "ok", "message": "Health Check Root"}
 
 
 @app.get("/health")

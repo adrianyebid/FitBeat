@@ -1,0 +1,81 @@
+# ===================================================================
+# GCP Override — reemplaza build: por image: para producción
+# Uso: docker compose -f docker-compose.yml -f docker-compose.gcp.yml up -d
+#
+# REGISTRY=us-central1-docker.pkg.dev/fitbeat-499000/fitbeat
+# ===================================================================
+
+services:
+  spotify_mock:
+    build: !reset null
+    image: ${REGISTRY}/spotify-mock:latest
+
+  component_a_1:
+    build: !reset null
+    image: ${REGISTRY}/user-service:latest
+    volumes: !reset []          # en prod no montamos código fuente
+
+  component_a_2:
+    build: !reset null
+    image: ${REGISTRY}/user-service:latest
+
+  component_a_3:
+    build: !reset null
+    image: ${REGISTRY}/user-service:latest
+
+  event_processor_1:
+    build: !reset null
+    image: ${REGISTRY}/event-processor:latest
+
+  event_processor_2:
+    build: !reset null
+    image: ${REGISTRY}/event-processor:latest
+
+  music_service_1:
+    build: !reset null
+    image: ${REGISTRY}/music-service:latest
+
+  music_service_2:
+    build: !reset null
+    image: ${REGISTRY}/music-service:latest
+
+  music_service_3:
+    build: !reset null
+    image: ${REGISTRY}/music-service:latest
+
+  achievements_service_1:
+    build: !reset null
+    image: ${REGISTRY}/achievements-service:latest
+
+  achievements_service_2:
+    build: !reset null
+    image: ${REGISTRY}/achievements-service:latest
+
+  achievements_service_3:
+    build: !reset null
+    image: ${REGISTRY}/achievements-service:latest
+
+  notification_service_1:
+    build: !reset null
+    image: ${REGISTRY}/notification-service:latest
+
+  notification_service_2:
+    build: !reset null
+    image: ${REGISTRY}/notification-service:latest
+
+  notification_service_3:
+    build: !reset null
+    image: ${REGISTRY}/notification-service:latest
+
+  frontend:
+    build: !reset null
+    image: ${REGISTRY}/frontend-web:latest
+    volumes: !reset []          # sin hot-reload en prod
+
+  frontend_ssr:
+    build: !reset null
+    image: ${REGISTRY}/frontend-ssr:latest
+
+  frontend_cli:
+    build: !reset null
+    image: ${REGISTRY}/frontend-cli:latest
