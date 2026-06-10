@@ -1,11 +1,11 @@
-# Project: Prototype 3 - Quality Attributes, Part 1
+# Proyecto: Prototipo 3 - Atributos de Calidad, Parte 1
 
-## Team
+## Equipo
 
-### Name
+### Nombre
 1e
 
-### Team members
+### Integrantes del equipo
 - Nicolas Felipe Arciniegas Lizarazo
 - Karen Lorena Guzman Del Rio
 - Juan David Chacon Munoz
@@ -13,396 +13,401 @@
 - Pablo Felipe Sandoval Menjura
 - Julio Cesar Albadan Sarmiento
 
-## Software System
+## Sistema de Software
 
-### Name
+### Nombre
 FitBeat
 
 ### Logo
 ![FitBeat Logo](https://github.com/user-attachments/assets/cfa66370-0594-4240-a5f4-f7bdf2c139c3)
 
-### Description
-FitBeat is a distributed fitness platform that synchronizes workout sessions with Spotify playback. A user can sign up or log in, connect a Spotify account, configure music preferences, and start a training session. During the session, playback can be controlled in real time, while business events are emitted and consumed asynchronously for achievements, analytics, and notifications.
+### Descripción
+FitBeat es una plataforma de fitness distribuida que sincroniza sesiones de entrenamiento con la reproducción de Spotify. Un usuario puede registrarse o iniciar sesión, conectar una cuenta de Spotify, configurar preferencias musicales e iniciar una sesión de entrenamiento. Durante la sesión, la reproducción puede controlarse en tiempo real, mientras que los eventos de negocio se emiten y consumen de forma asíncrona para logros, analíticas y notificaciones.
 
-The third prototype redesigns the previous architecture by separating the public edge from the API orchestration responsibilities. Traefik is now modeled as the reverse proxy at the system boundary, KrakenD remains as the API Gateway in the orchestration tier, and backend services are isolated through segmented Docker networks and service-owned persistence.
+El tercer prototipo rediseña la arquitectura anterior separando el borde público de las responsabilidades de orquestación de la API. Traefik se modela ahora como el proxy inverso en el límite del sistema, KrakenD permanece como el API Gateway en el nivel de orquestación, y los servicios de backend se aíslan mediante redes Docker segmentadas y persistencia propia por servicio.
 
-### Functional completeness
-The team-defined functional scope for this prototype includes:
-- User registration, login, JWT session management, and Spotify OAuth connection.
-- Music preference management for training personalization.
-- Training session creation and real-time playback control through HTTP and WebSocket.
-- Event emission from training activity to asynchronous consumers.
-- Achievement evaluation and progress retrieval.
-- Notification generation and persistence from business events.
-- Secure external access through HTTPS, reverse proxy routing, API gateway contracts, network segmentation, and service-to-service shared-secret validation.
+### Completitud funcional
+El alcance funcional definido por el equipo para este prototipo incluye:
+- Registro de usuarios, inicio de sesión, gestión de sesiones JWT y conexión OAuth con Spotify.
+- Gestión de preferencias musicales para la personalización del entrenamiento.
+- Creación de sesiones de entrenamiento y control de reproducción en tiempo real mediante HTTP y WebSocket.
+- Emisión de eventos desde la actividad de entrenamiento hacia consumidores asíncronos.
+- Evaluación de logros y consulta de progreso.
+- Generación y persistencia de notificaciones a partir de eventos de negocio.
+- Acceso externo seguro mediante HTTPS, enrutamiento por proxy inverso, contratos de API gateway, segmentación de red y validación de secreto compartido entre servicios.
 
-## Architectural Structures
+## Estructuras Arquitectónicas
 
-### 1. Component-and-Connector Structure
+### 1. Estructura de Componentes y Conectores
 
-#### C&C View
-![C&C View](./images/p3/c&c-view.jpg)
+#### Vista C&C
+![Vista C&C](./images/p3/c&c-view.jpg)
 
-#### Description of architectural elements and relations
+#### Descripción de elementos y relaciones arquitectónicas
 
-##### Presentation components
-- `frontend/web` (React + Vite): client-side web interface used by end users to authenticate, configure preferences, start training sessions, control playback, and review achievements.
-- `frontend/web-ssr` (Next.js): server-rendered web component used as the official presentation component for the delivery and runtime checks.
-- `frontend/cli` (Node.js): command-line client that executes authentication, dashboard, training, and player-control workflows.
+##### Componentes de presentación
+- `frontend/web` (React + Vite): interfaz web del lado del cliente utilizada por los usuarios finales para autenticarse, configurar preferencias, iniciar sesiones de entrenamiento, controlar la reproducción y revisar logros.
+- `frontend/web-ssr` (Next.js): componente web con renderizado en servidor, utilizado como componente de presentación oficial para las entregas y verificaciones en tiempo de ejecución.
+- `frontend/cli` (Node.js): cliente de línea de comandos que ejecuta flujos de autenticación, tablero, entrenamiento y control del reproductor.
 
-##### Edge and orchestration components
-- `fb_gateway` (`traefik`): reverse proxy located at the public boundary. It receives HTTP/HTTPS traffic, terminates TLS, applies CORS middleware, and forwards API traffic only to KrakenD. It also routes the SSR frontend.
-- `fb_api_gateway` (`krakend`): API Gateway and orchestration facade. It exposes an explicit endpoint contract and routes requests to the corresponding backend service.
-- `fb_broker` (`rabbitmq`): asynchronous message broker used for event publication and consumption between backend services.
+##### Componentes de borde y orquestación
+- `traefik` (`fb_gateway`): proxy inverso ubicado en el límite público. Recibe tráfico HTTP/HTTPS, termina TLS, aplica middleware CORS y reenvía el tráfico de API únicamente a KrakenD. También enruta el frontend SSR.
+- `krakend` (`fb_api_gateway`): API Gateway y fachada de orquestación. Expone un contrato de endpoints explícito y enruta las solicitudes al servicio de backend correspondiente.
+- `rabbitmq` (`fb_rabbitmq`): broker de mensajes asíncrono utilizado para la publicación y consumo de eventos entre servicios de backend.
 
-##### Logic-type components
-- `user-service` (`user_service`, Python/FastAPI): manages users, local authentication, JWTs, Spotify OAuth, and internal contact/token endpoints.
-- `music-service` (`music_service`, Go): manages training sessions, Spotify playback orchestration, WebSocket player commands, and event publication.
-- `achievements-service` (`achievements_service`, .NET 8): evaluates achievement rules, stores badge progress, and consumes training-related events.
-- `notification-service` (`notification_service`, TypeScript/Node.js): consumes events, obtains user contact data through authorized S2S calls, persists notifications, and dispatches email messages.
-- `event-processor` (Java/Spring Boot): consumes training events and computes derived metrics and statistics.
+##### Componentes de lógica
+- `user-service` (`component_a`, Python/FastAPI): gestiona usuarios, autenticación local, JWTs, OAuth de Spotify y endpoints internos de contacto y token.
+- `music-service` (`music_service`, Go): gestiona sesiones de entrenamiento, orquestación de reproducción de Spotify, comandos de reproductor por WebSocket y publicación de eventos.
+- `achievements-service` (`achievements_service`, .NET 8): evalúa reglas de logros, almacena el progreso de insignias y consume eventos relacionados con el entrenamiento.
+- `notification-service` (`notification_service`, TypeScript/Node.js): consume eventos, obtiene datos de contacto del usuario mediante llamadas S2S autorizadas, persiste notificaciones y despacha mensajes de correo electrónico.
+- `event-processor` (Java/Spring Boot): consume eventos de entrenamiento y calcula métricas y estadísticas derivadas.
 
-##### Data components
-- `fb_users_db` (PostgreSQL): user, credential, token, and preference data.
-- `fb_music_db` (CouchDB): training session and music-session documents.
-- `fb_achievements_db` (PostgreSQL): achievement catalog, progress, and processed inbound events.
-- `fb_notification_db` (PostgreSQL): notification records and delivery information.
-- `fb_event_db` (PostgreSQL): processed event records and derived metrics.
+##### Componentes de datos
+- `fb_users_db` (PostgreSQL): datos de usuario, credenciales, tokens y preferencias.
+- `fb_music_db` (CouchDB): documentos de sesiones de entrenamiento y sesiones musicales.
+- `fb_achievements_db` (PostgreSQL): catálogo de logros, progreso y eventos de entrada procesados.
+- `fb_notification_db` (PostgreSQL): registros de notificaciones e información de entrega.
+- `fb_event_db` (PostgreSQL): registros de eventos procesados y métricas derivadas.
 
-##### External systems
-- Spotify API: external provider used for OAuth, playback, current-track information, and music control.
-- Email provider: external service used by the notification service to send messages.
+##### Sistemas externos
+- API de Spotify: proveedor externo utilizado para OAuth, reproducción, información de pista actual y control musical.
+- Proveedor de correo electrónico: servicio externo utilizado por el servicio de notificaciones para enviar mensajes.
 
-##### Main relations and connectors
-| Connector | Producer | Consumer | Description |
+##### Relaciones y conectores principales
+| Conector | Productor | Consumidor | Descripción |
 |---|---|---|---|
-| HTTPS/HTTP request-reply | Web, SSR, CLI clients | Traefik | External clients access the system through the reverse proxy. HTTPS is used for secure-channel scenarios. |
-| HTTP reverse proxy | Traefik | KrakenD | Traefik forwards API path prefixes to KrakenD and hides backend topology. |
-| REST/HTTP | KrakenD | Backend services | KrakenD routes public API contracts to `user-service`, `music-service`, `achievements-service`, and `notification-service`. |
-| WebSocket | Client player UI/CLI | `music-service` through gateway path | Real-time playback commands are sent during an active training session. |
-| AMQP | `music-service` and other producers | RabbitMQ consumers | Business events are published to queues/exchanges for asynchronous processing. |
-| DB connectors | Microservices | Owned databases | Each service accesses only its own persistence component. |
-| HTTPS external API | `user-service`, `music-service` | Spotify API | OAuth, token refresh, and playback interactions. |
-| Internal HTTP + `X-Internal-Token` | `notification-service` | `user-service` | Authorized service-to-service access to internal contact data. |
+| Solicitud-respuesta HTTPS/HTTP | Clientes Web, SSR, CLI | Traefik | Los clientes externos acceden al sistema a través del proxy inverso. HTTPS se usa en escenarios de canal seguro. |
+| Proxy inverso HTTP | Traefik | KrakenD | Traefik reenvía los prefijos de ruta de API a KrakenD y oculta la topología del backend. |
+| REST/HTTP | KrakenD | Servicios de backend | KrakenD enruta los contratos públicos de API a `user-service`, `music-service`, `achievements-service` y `notification-service`. |
+| WebSocket | UI del reproductor / CLI | `music-service` a través de la ruta del gateway | Los comandos de reproducción en tiempo real se envían durante una sesión de entrenamiento activa. |
+| AMQP | `music-service` y otros productores | Consumidores RabbitMQ | Los eventos de negocio se publican en colas/exchanges para procesamiento asíncrono. |
+| Conectores de BD | Microservicios | Bases de datos propias | Cada servicio accede únicamente a su propio componente de persistencia. |
+| API externa HTTPS | `user-service`, `music-service` | API de Spotify | Interacciones de OAuth, renovación de tokens y reproducción. |
+| HTTP interno + `X-Internal-Token` | `notification-service` | `user-service` | Acceso autorizado de servicio a servicio a los datos de contacto internos. |
 
-#### Description of architectural styles and patterns used
-- **Microservices style:** FitBeat is decomposed into independently deployable backend services aligned with business capabilities: identity, workout/playback, achievements, notifications, and event processing.
-- **Client-server style:** Frontends act as clients and backend components expose HTTP/WebSocket interfaces through controlled entry points.
-- **Distributed architecture:** Components run in separate containers and communicate through network connectors, which introduces latency and partial-failure concerns handled through explicit contracts and asynchronous messaging.
-- **Event-driven collaboration:** Training and business events are delivered through RabbitMQ so producers and consumers do not depend on each other's availability.
-- **API Gateway pattern:** KrakenD provides a single API facade and exposes only whitelisted endpoints.
-- **Reverse Proxy pattern:** Traefik protects the edge, terminates TLS, applies routing policies, and prevents clients from seeing internal service addresses.
-- **Broker pattern:** RabbitMQ decouples fast producers from asynchronous consumers.
-- **Database-per-service pattern:** Each service owns its persistence boundary and avoids shared database coupling.
-- **Secure Channel pattern:** HTTPS/TLS protects external requests that may contain credentials or tokens.
-- **Secret Token pattern:** Internal HTTP endpoints are protected with a shared `X-Internal-Token` header.
+#### Descripción de estilos y patrones arquitectónicos utilizados
+- **Estilo de microservicios:** FitBeat se descompone en servicios de backend desplegables de forma independiente, alineados con capacidades de negocio: identidad, entrenamiento/reproducción, logros, notificaciones y procesamiento de eventos.
+- **Estilo cliente-servidor:** Los frontends actúan como clientes y los componentes de backend exponen interfaces HTTP/WebSocket a través de puntos de entrada controlados.
+- **Arquitectura distribuida:** Los componentes se ejecutan en contenedores separados y se comunican a través de conectores de red, lo que introduce latencia y preocupaciones de fallo parcial gestionadas mediante contratos explícitos y mensajería asíncrona.
+- **Colaboración orientada a eventos:** Los eventos de entrenamiento y de negocio se entregan a través de RabbitMQ para que los productores y consumidores no dependan de la disponibilidad mutua.
+- **Patrón API Gateway:** KrakenD proporciona una única fachada de API y expone solo los endpoints en lista blanca.
+- **Patrón Proxy Inverso:** Traefik protege el borde, termina TLS, aplica políticas de enrutamiento e impide que los clientes vean las direcciones internas de los servicios.
+- **Patrón Broker:** RabbitMQ desacopla a los productores rápidos de los consumidores asíncronos.
+- **Patrón Base de datos por servicio:** Cada servicio posee su propio límite de persistencia y evita el acoplamiento por base de datos compartida.
+- **Patrón Canal Seguro:** HTTPS/TLS protege las solicitudes externas que pueden contener credenciales o tokens.
+- **Patrón Token Secreto:** Los endpoints HTTP internos están protegidos con un encabezado `X-Internal-Token` compartido.
 
-### 2. Deployment Structure
+### 2. Estructura de Despliegue
 
-#### Deployment View
-![Deployment View](./images/p3/deployment_view.jpg)
+#### Vista de Despliegue
+![Vista de Despliegue](./images/p3/deployment_view.jpg)
 
-#### Description of architectural elements and relations
+#### Descripción de elementos y relaciones arquitectónicas
 
-##### Deployment environment
-The prototype is deployed with Docker Compose on a single host. Each major component runs in an independent container with its own runtime image, environment variables, ports, health checks, and Docker network memberships.
+##### Entorno de despliegue
+El prototipo se despliega con Docker Compose en un único host. Cada componente principal se ejecuta en un contenedor independiente con su propia imagen de tiempo de ejecución, variables de entorno, puertos, comprobaciones de salud y membresías en redes Docker.
 
-##### Nodes and containers
-- Host node: physical or virtual machine running Docker Engine and Docker Compose.
-- `fb_gateway`: Traefik reverse proxy container.
-- `fb_api_gateway`: KrakenD API Gateway container.
-- `fitbeat_frontend`: React + Vite frontend container, used under the `legacy-csr` profile.
-- `fitbeat_frontend_ssr`: Next.js SSR frontend container.
-- `fitbeat_cli`: Node.js CLI container.
-- `fb_users_ms`, `fb_music_ms`, `fb_achievements_ms`, `fb_notification_ms`, `fb_event_processor`: backend service containers.
-- `fb_users_db`, `fb_music_db`, `fb_achievements_db`, `fb_notification_db`, `fb_event_db`: persistence containers.
-- `fb_rabbitmq`: AMQP broker and management UI container.
+##### Nodos y contenedores
+- Nodo host: máquina física o virtual que ejecuta Docker Engine y Docker Compose.
+- `fb_gateway`: contenedor del proxy inverso Traefik.
+- `fb_api_gateway`: contenedor del API Gateway KrakenD.
+- `fitbeat_frontend`: contenedor del frontend React + Vite, utilizado bajo el perfil `legacy-csr`.
+- `fitbeat_frontend_ssr`: contenedor del frontend Next.js con SSR.
+- `fitbeat_cli`: contenedor del CLI Node.js.
+- `fb_users_ms`, `fb_music_ms`, `fb_achievements_ms`, `fb_notification_ms`, `fb_event_processor`: contenedores de servicios de backend.
+- `fb_users_db`, `fb_music_db`, `fb_achievements_db`, `fb_notification_db`, `fb_event_db`: contenedores de persistencia.
+- `fb_rabbitmq`: contenedor del broker AMQP y su interfaz de administración.
 
-##### Runtime environments
-- Traefik v3.1 for reverse proxy, TLS, and routing.
-- KrakenD 2.7 for API gateway contracts and backend forwarding.
-- Node.js runtime for CSR frontend, SSR frontend, CLI, and notification service.
-- Python 3.11 + Uvicorn/FastAPI for user service.
-- Go runtime/binary for music service.
-- .NET 8 runtime for achievements service.
-- Java 21 runtime for event processor.
-- PostgreSQL, CouchDB, and RabbitMQ for infrastructure services.
+##### Entornos de ejecución
+- Traefik v3.1 para proxy inverso, TLS y enrutamiento.
+- KrakenD 2.7 para contratos de API gateway y reenvío al backend.
+- Entorno Node.js para frontend CSR, frontend SSR, CLI y servicio de notificaciones.
+- Python 3.11 + Uvicorn/FastAPI para el servicio de usuarios.
+- Binario/entorno Go para el servicio de música.
+- Entorno .NET 8 para el servicio de logros.
+- Entorno Java 21 para el procesador de eventos.
+- PostgreSQL, CouchDB y RabbitMQ para los servicios de infraestructura.
 
-##### Networks
-- `gateway_network`: DMZ/public access zone containing Traefik, KrakenD, frontends, and CLI.
-- `api_gateway_net`: internal API zone connecting KrakenD with backend microservices.
-- `users_db_net`, `music_db_net`, `achievements_db_net`, `notification_db_net`, `events_db_net`: internal database networks dedicated to each service and its database.
-- `messaging_net`: internal AMQP zone for RabbitMQ and event producers/consumers.
-- `services_internal_net`: explicit internal channel between `notification-service` and `user-service`.
+##### Redes
+- `gateway_network`: zona DMZ/acceso público que contiene Traefik, KrakenD, frontends y CLI.
+- `api_gateway_net`: zona de API interna que conecta KrakenD con los microservicios de backend.
+- `users_db_net`, `music_db_net`, `achievements_db_net`, `notification_db_net`, `events_db_net`: redes de base de datos internas dedicadas a cada servicio y su base de datos.
+- `messaging_net`: zona AMQP interna para RabbitMQ y los productores/consumidores de eventos.
+- `services_internal_net`: canal interno explícito entre `notification-service` y `user-service`.
 
-##### Main deployment relations
-- External clients -> host ports `8090`/`443` -> `fb_gateway`.
-- `fb_gateway` -> `fb_api_gateway` through `gateway_network`.
-- `fb_api_gateway` -> backend microservices through `api_gateway_net`.
-- Each microservice -> owned database through its dedicated internal database network.
-- Event producers/consumers -> `fb_rabbitmq` through `messaging_net`.
-- `fitbeat_frontend_ssr` -> Traefik/KrakenD using `NEXT_PUBLIC_GATEWAY_URL`.
+##### Relaciones de despliegue principales
+- Clientes externos -> puertos del host `8090`/`443` -> `fb_gateway`.
+- `fb_gateway` -> `fb_api_gateway` a través de `gateway_network`.
+- `fb_api_gateway` -> microservicios de backend a través de `api_gateway_net`.
+- Cada microservicio -> base de datos propia a través de su red interna de base de datos dedicada.
+- Productores/consumidores de eventos -> `fb_rabbitmq` a través de `messaging_net`.
+- `fitbeat_frontend_ssr` -> Traefik/KrakenD usando `NEXT_PUBLIC_GATEWAY_URL`.
 
-#### Description of architectural patterns used
-- **Container-based deployment:** Every application and infrastructure component is packaged in a container, making runtime dependencies explicit and reproducible.
-- **Edge reverse proxy deployment:** Traefik is deployed at the system boundary to receive all external traffic and enforce edge policies.
-- **API Gateway deployment:** KrakenD is deployed behind Traefik and is the only bridge between the public gateway network and backend API network.
-- **Network Segmentation pattern:** Docker networks create trust zones for public ingress, API routing, data access, messaging, and explicit S2S channels.
-- **Dedicated storage pattern:** Each data store is allocated to the domain service that owns it.
-- **Defense-in-depth deployment:** TLS, reverse proxy routing, endpoint whitelisting, network isolation, and shared-secret validation operate as independent protection layers.
+#### Descripción de patrones arquitectónicos utilizados
+- **Despliegue basado en contenedores:** Cada componente de aplicación e infraestructura está empaquetado en un contenedor, haciendo las dependencias de tiempo de ejecución explícitas y reproducibles.
+- **Despliegue con proxy inverso en el borde:** Traefik se despliega en el límite del sistema para recibir todo el tráfico externo y aplicar políticas de borde.
+- **Despliegue de API Gateway:** KrakenD se despliega detrás de Traefik y es el único puente entre la red del gateway público y la red de API del backend.
+- **Patrón de Segmentación de Red:** Las redes Docker crean zonas de confianza para ingreso público, enrutamiento de API, acceso a datos, mensajería y canales S2S explícitos.
+- **Patrón de Almacenamiento Dedicado:** Cada almacén de datos se asigna al servicio de dominio que lo posee.
+- **Despliegue de Defensa en Profundidad:** TLS, enrutamiento por proxy inverso, lista blanca de endpoints, aislamiento de red y validación de token compartido operan como capas de protección independientes.
 
-### 3. Layered Structure
+### 3. Estructura en Capas
 
-#### Layered View
-![Layered View](./images/p3/Layered_view.jpg)
+#### Vista en Capas
+![Vista en Capas](./images/p3/Layered_view.jpg)
 
-#### Description of architectural elements and relations
+#### Descripción de elementos y relaciones arquitectónicas
 
-##### Tier 1 - Client / Presentation
-- `frontend/web`, `frontend/web-ssr`, and `frontend/cli`.
-- Responsible for user interaction, UI rendering, command-line workflows, session display, and client-side coordination.
+##### Nivel 1 - Cliente / Presentación
+- `frontend/web`, `frontend/web-ssr` y `frontend/cli`.
+- Responsable de la interacción con el usuario, renderizado de UI, flujos de línea de comandos, visualización de sesiones y coordinación del lado del cliente.
 
-##### Tier 2 - Edge / Access
+##### Nivel 2 - Borde / Acceso
 - `traefik`.
-- Responsible for public entry, HTTP/HTTPS exposure, TLS termination, CORS middleware, and first-level routing.
+- Responsable del punto de entrada público, exposición HTTP/HTTPS, terminación TLS, middleware CORS y enrutamiento de primer nivel.
 
-##### Tier 3 - Orchestration
-- `krakend` and `rabbitmq`.
-- KrakenD orchestrates synchronous API access by exposing the backend contract and routing requests.
-- RabbitMQ orchestrates asynchronous collaboration by decoupling producers and consumers.
+##### Nivel 3 - Orquestación
+- `krakend` y `rabbitmq`.
+- KrakenD orquesta el acceso sincrónico a la API exponiendo el contrato del backend y enrutando las solicitudes.
+- RabbitMQ orquesta la colaboración asíncrona desacoplando productores y consumidores.
 
-##### Tier 4 - Business Services
-- `user-service`, `music-service`, `achievements-service`, `notification-service`, and `event-processor`.
-- Responsible for application and domain logic, service-specific validation, event publication/consumption, and integration with external APIs.
+##### Nivel 4 - Servicios de Negocio
+- `user-service`, `music-service`, `achievements-service`, `notification-service` y `event-processor`.
+- Responsables de la lógica de aplicación y de dominio, validación específica del servicio, publicación/consumo de eventos e integración con APIs externas.
 
-##### Tier 5 - Data and Messaging Infrastructure
-- PostgreSQL databases, CouchDB, and RabbitMQ storage/queues.
-- Responsible for persistence, event durability, and infrastructure-level data management.
+##### Nivel 5 - Infraestructura de Datos y Mensajería
+- Bases de datos PostgreSQL, CouchDB y almacenamiento/colas de RabbitMQ.
+- Responsables de la persistencia, durabilidad de eventos y gestión de datos a nivel de infraestructura.
 
-##### Dependency rule
-The allowed-to-use relation flows from upper tiers to lower tiers:
+##### Regla de dependencia
+La relación de uso permitido fluye de los niveles superiores a los inferiores:
 
 ```text
-Client / Presentation
-  -> Edge / Access
-      -> Orchestration
-          -> Business Services
-              -> Data and Messaging Infrastructure
+Cliente / Presentación
+  -> Borde / Acceso
+      -> Orquestación
+          -> Servicios de Negocio
+              -> Infraestructura de Datos y Mensajería
 ```
 
-Backend services may also use the orchestration tier for asynchronous event publication/consumption. Direct access from clients to business services or databases is not part of the intended architecture.
+Los servicios de backend también pueden usar el nivel de orquestación para la publicación/consumo asíncrono de eventos. El acceso directo de clientes a servicios de negocio o bases de datos no forma parte de la arquitectura prevista.
 
-##### Logical layers inside selected components
-- `frontend/web`: `presentation -> state/coordinator -> client integration -> external interfaces`.
-- `frontend/cli`: `interface -> application workflow -> service -> client integration -> external interfaces`.
-- `frontend/web-ssr`: `server-rendered presentation -> server-side integration -> API Gateway`.
-- `krakend`: `gateway contract -> routing/composition -> backend integration`.
-- `traefik`: `edge entry -> routing -> middleware/policy -> upstream services`.
-- `music-service`: `handler -> service -> repository -> model`, with service-level access to model objects.
+##### Capas lógicas internas en componentes seleccionados
+- `frontend/web`: `presentación -> estado/coordinador -> integración de cliente -> interfaces externas`.
+- `frontend/cli`: `interfaz -> flujo de aplicación -> servicio -> integración de cliente -> interfaces externas`.
+- `frontend/web-ssr`: `presentación renderizada en servidor -> integración del lado servidor -> API Gateway`.
+- `krakend`: `contrato del gateway -> enrutamiento/composición -> integración con backend`.
+- `traefik`: `entrada de borde -> enrutamiento -> middleware/política -> servicios upstream`.
+- `music-service`: `manejador -> servicio -> repositorio -> modelo`, con acceso a nivel de servicio a los objetos del modelo.
 
-#### Description of architectural patterns used
-- **N-tier architecture:** The system is organized into five tiers: presentation, edge/access, orchestration, business services, and data/infrastructure.
-- **Separated edge and orchestration layers:** Traefik and KrakenD are intentionally placed in different tiers because Traefik handles public access concerns while KrakenD handles API contract and backend routing concerns.
-- **Layered style inside services:** Backend services separate handlers/controllers, application services, repositories, and models where applicable.
-- **Layered event-driven processing:** Event consumers act as entry points for asynchronous workflows, while service logic and persistence remain separated.
-- **Allowed-to-use dependency rule:** Higher tiers depend on lower tiers through explicit HTTP, WebSocket, AMQP, or database connectors.
+#### Descripción de patrones arquitectónicos utilizados
+- **Arquitectura N-capas:** El sistema está organizado en cinco niveles: presentación, borde/acceso, orquestación, servicios de negocio e infraestructura de datos.
+- **Separación de capas de borde y orquestación:** Traefik y KrakenD se ubican intencionalmente en niveles diferentes porque Traefik gestiona las preocupaciones de acceso público mientras que KrakenD gestiona el contrato de API y el enrutamiento al backend.
+- **Estilo en capas dentro de los servicios:** Los servicios de backend separan manejadores/controladores, servicios de aplicación, repositorios y modelos donde aplica.
+- **Procesamiento orientado a eventos en capas:** Los consumidores de eventos actúan como puntos de entrada para flujos de trabajo asíncronos, mientras que la lógica de servicio y la persistencia permanecen separadas.
+- **Regla de dependencia de uso permitido:** Los niveles superiores dependen de los inferiores a través de conectores explícitos HTTP, WebSocket, AMQP o de base de datos.
 
-### 4. Decomposition Structure
+### 4. Estructura de Descomposición
 
-#### Decomposition View
-![Decomposition View](./images/p3/decomposition-view.jpg)
+#### Vista de Descomposición
+![Vista de Descomposición](./images/p3/decomposition-view.jpg)
 
-#### Description of architectural elements and relations
+#### Descripción de elementos y relaciones arquitectónicas
 
-##### System decomposition
-- `FitBeat System`
-  - `Presentation Subsystem`
-    - Web CSR frontend (`frontend/web`)
-    - Web SSR frontend (`frontend/web-ssr`)
-    - CLI frontend (`frontend/cli`)
-  - `Edge and Access Subsystem`
-    - Reverse proxy (`traefik`)
-    - TLS certificates and CORS middleware
-  - `API Orchestration Subsystem`
+##### Descomposición del sistema
+- `Sistema FitBeat`
+  - `Subsistema de Presentación`
+    - Frontend web CSR (`frontend/web`)
+    - Frontend web SSR (`frontend/web-ssr`)
+    - Frontend CLI (`frontend/cli`)
+  - `Subsistema de Borde y Acceso`
+    - Proxy inverso (`traefik`)
+    - Certificados TLS y middleware CORS
+  - `Subsistema de Orquestación de API`
     - API Gateway (`krakend`)
-    - Public API endpoint contracts
-  - `Identity Subsystem`
-    - User service
-    - Users database
-    - Spotify OAuth integration
-  - `Workout and Playback Subsystem`
-    - Music service
-    - Music/session database
-    - WebSocket player control
-    - Spotify playback integration
-  - `Gamification Subsystem`
-    - Achievements service
-    - Achievements database
-  - `Notification Subsystem`
-    - Notification service
-    - Notification database
-    - Email integration
-  - `Async Processing Subsystem`
-    - Event processor
-    - Event database
-    - RabbitMQ queues/exchanges
-  - `Shared Infrastructure Subsystem`
-    - Docker networks
-    - RabbitMQ broker
-    - Service-to-service shared secret
+    - Contratos de endpoints de API pública
+  - `Subsistema de Identidad`
+    - Servicio de usuarios
+    - Base de datos de usuarios
+    - Integración OAuth con Spotify
+  - `Subsistema de Entrenamiento y Reproducción`
+    - Servicio de música
+    - Base de datos de música/sesiones
+    - Control del reproductor por WebSocket
+    - Integración de reproducción con Spotify
+  - `Subsistema de Gamificación`
+    - Servicio de logros
+    - Base de datos de logros
+  - `Subsistema de Notificaciones`
+    - Servicio de notificaciones
+    - Base de datos de notificaciones
+    - Integración de correo electrónico
+  - `Subsistema de Procesamiento Asíncrono`
+    - Procesador de eventos
+    - Base de datos de eventos
+    - Colas/exchanges de RabbitMQ
+  - `Subsistema de Infraestructura Compartida`
+    - Redes Docker
+    - Broker RabbitMQ
+    - Secreto compartido de servicio a servicio
 
-##### Main relations
-- Presentation subsystem depends on the edge/access subsystem for public entry.
-- Edge/access subsystem forwards API traffic to API orchestration and SSR traffic to the SSR frontend.
-- API orchestration subsystem depends on backend service contracts.
-- Business subsystems own their data components and do not share database schemas.
-- Workout/playback publishes events consumed by gamification, notifications, and event processing.
-- Notification subsystem uses an explicit internal channel to request user contact data from the identity subsystem.
-- External integrations are encapsulated behind the services that need them.
+##### Relaciones principales
+- El subsistema de presentación depende del subsistema de borde/acceso para el punto de entrada público.
+- El subsistema de borde/acceso reenvía el tráfico de API a la orquestación y el tráfico SSR al frontend SSR.
+- El subsistema de orquestación de API depende de los contratos de los servicios de backend.
+- Los subsistemas de negocio poseen sus componentes de datos y no comparten esquemas de base de datos.
+- El subsistema de entrenamiento/reproducción publica eventos consumidos por gamificación, notificaciones y procesamiento de eventos.
+- El subsistema de notificaciones usa un canal interno explícito para solicitar datos de contacto del usuario al subsistema de identidad.
+- Las integraciones externas están encapsuladas detrás de los servicios que las necesitan.
 
-#### Description of architectural patterns used
-- **Functional decomposition by business capability:** Services are organized by domain responsibility: identity, workout/playback, gamification, notifications, and async metrics.
-- **Infrastructure decomposition:** Edge, gateway, broker, networks, certificates, and databases are separated from business services.
-- **High cohesion and loose coupling:** Each subsystem owns a focused responsibility and communicates through REST, WebSocket, AMQP, or explicit S2S contracts.
-- **Database-per-service:** Data ownership follows subsystem boundaries.
+#### Descripción de patrones arquitectónicos utilizados
+- **Descomposición funcional por capacidad de negocio:** Los servicios se organizan por responsabilidad de dominio: identidad, entrenamiento/reproducción, gamificación, notificaciones y métricas asíncronas.
+- **Descomposición de infraestructura:** El borde, gateway, broker, redes, certificados y bases de datos se separan de los servicios de negocio.
+- **Descomposición de integraciones:** Spotify y los proveedores de correo electrónico se modelan como sistemas externos y se acceden a través de lógica de integración propia de cada servicio.
+- **Alta cohesión y bajo acoplamiento:** Cada subsistema posee una responsabilidad enfocada y se comunica a través de contratos REST, WebSocket, AMQP o S2S explícitos.
+- **Base de datos por servicio:** La propiedad de los datos sigue los límites de los subsistemas.
 
-## Quality Attributes
+## Atributos de Calidad
 
-### Security
+### Seguridad
 
-#### Security scenarios
+#### Escenarios de seguridad
 
-##### Scenario 1 - Secure Channel Pattern
-![Secure Channel Pattern](./images/p3/SecureChannelPattern.jpg)
+##### Escenario 1 - Patrón de Canal Seguro
+![Patrón de Canal Seguro](./images/p3/SecureChannelPattern.jpg)
 
-| Element | Description |
+- **Debilidad:** El protocolo HTTP transmite datos en texto plano por diseño (RFC 2616). Los clientes web y CLI envían credenciales (correo electrónico, contraseña) y tokens de autenticación JWT hacia el sistema sin ningún mecanismo de cifrado nativo en la capa de transporte. Esta es una característica inherente al protocolo, no una configuración incorrecta del sistema.
+
+- **Vulnerabilidad:** La debilidad queda expuesta porque los clientes se conectan desde redes públicas no controladas (Wi-Fi de cafeterías, redes móviles) donde el tráfico puede ser interceptado por terceros. El puerto `8090` de Traefik acepta tráfico HTTP sin redireccionamiento forzado a HTTPS, lo que permite que peticiones de inicio de sesión con credenciales en texto plano alcancen el sistema.
+
+- **Riesgo:** Confidencialidad comprometida: las credenciales de acceso (correo electrónico y contraseña) y los tokens JWT transmitidos en texto plano pueden ser capturados por un atacante posicionado en la misma red, permitiéndole suplantar la identidad del usuario afectado o acceder a sus datos de entrenamiento y cuenta de Spotify vinculada.
+
+- **Amenaza:** Un actor malicioso posicionado en la misma red (Wi-Fi pública, ISP comprometido) o con acceso a un nodo intermedio puede interceptar el tráfico entre el cliente y el gateway de FitBeat mediante técnicas de sniffing pasivo o ataques activos de intercepción.
+
+- **Ataque:** Man-in-the-Middle (MitM) — el atacante intercepta la comunicación cliente-gateway y captura credenciales y datos sensibles en tránsito. Con acceso al token JWT, puede reutilizarlo para suplantar la sesión del usuario legítimo sin necesidad de conocer la contraseña.
+
+- **Contramedida:** Patrón de Canal Seguro — implementación de TLS 1.2+ en Traefik (`fb_gateway`) con certificados propios de FitBeat. Traefik termina el canal seguro en el borde (puerto `443`), realiza TLS Offloading (descifrado en la frontera) y delega la petición de forma limpia internamente hacia KrakenD a través de la red privada de Docker (`gateway_network`). El 100% del tráfico que contiene credenciales o tokens viaja cifrado entre el cliente y el sistema.
+
+Descripción: este escenario protege la confidencialidad e integridad del tráfico sensible de los usuarios. Surge de la evidencia de laboratorio donde HTTP en el puerto `8090` exponía las cargas de inicio de sesión en texto claro, mientras que HTTPS en el puerto `443` cifraba la misma información.
+
+##### Escenario 2 - Patrón de Proxy Inverso
+![Patrón de Proxy Inverso](./images/p3/reverseproxypattern.jpg)
+
+- **Debilidad:** Los microservicios de backend (`user-service`, `music-service`, `achievements-service`, `notification-service`) exponen sus endpoints HTTP internamente con rutas predecibles y sin mecanismos adicionales de autenticación de red propios. Por diseño, cada servicio confía en que solo el gateway autorizado puede alcanzarlos, lo que crea una dependencia implícita en el correcto aislamiento del enrutamiento.
+
+- **Vulnerabilidad:** Si un atacante logra conocer o inferir los nombres de host internos de los servicios (por ejemplo, mediante la inspección de respuestas de error reveladoras, configuraciones expuestas o exploración de la red), podría intentar acceder directamente a endpoints no publicados en el contrato de KrakenD. La ausencia de un mecanismo de autenticación propio en cada servicio hace que la protección dependa exclusivamente de las capas de enrutamiento (Traefik + KrakenD).
+
+- **Riesgo:** Exposición de la topología interna y acceso no autorizado a endpoints privados: un atacante que logre eludir la capa de proxy podría invocar rutas internas de administración, endpoints de salud detallados o funciones no publicadas del contrato de API, obteniendo información sensible o ejecutando operaciones no autorizadas.
+
+- **Amenaza:** Un actor externo con conocimiento parcial de la topología interna del sistema, o un atacante que compromete un componente dentro de la red `gateway_network`, puede intentar realizar peticiones directas a los microservicios saltando las políticas de enrutamiento de Traefik y la lista blanca de KrakenD.
+
+- **Ataque:** Bypass de rutas / Acceso directo al servicio — el atacante construye peticiones HTTP dirigidas directamente a los nombres de servicio internos (por ejemplo, `component_a:8000`) o a rutas no listadas en `krakend.json`, intentando acceder a funcionalidad no expuesta públicamente o a información de diagnóstico del sistema.
+
+- **Contramedida:** Patrón de Proxy Inverso — Traefik actúa como único punto de entrada público y solo conoce la dirección de KrakenD y del frontend SSR; los nombres y puertos de los microservicios de backend no son accesibles desde `gateway_network`. KrakenD aplica una lista blanca estricta de endpoints definidos en `krakend.json`, rechazando con `404 Not Found` cualquier ruta no declarada, sin revelar información sobre la topología interna ni los servicios existentes.
+
+Descripción: Traefik es un proxy inverso puro en el borde. Conoce a KrakenD y al frontend SSR, pero no conoce las direcciones de los microservicios de backend. KrakenD aplica entonces la lista blanca del contrato de API.
+
+##### Escenario 3 - Patrón de Segmentación de Red
+![Patrón de Segmentación de Red](./images/p3/networksegmentationpattern.jpg)
+
+- **Debilidad:** En una arquitectura de microservicios con múltiples servicios y bases de datos en contenedores, la comunicación entre componentes es necesariamente amplia. Sin controles de red explícitos, todos los contenedores dentro de un mismo host Docker podrían potencialmente resolver los nombres de otros servicios y establecer conexiones TCP, lo que crea una superficie de ataque lateral muy amplia una vez que cualquier contenedor es comprometido.
+
+- **Vulnerabilidad:** La vulnerabilidad se manifiesta cuando un contenedor comprometido (por ejemplo, `notification-service` explotado mediante una dependencia npm vulnerable) tiene visibilidad de red hacia componentes que no debería poder alcanzar, como la base de datos de usuarios (`fb_users_db`), el broker de mensajería (`fb_rabbitmq`) o servicios internos de otros dominios. Sin segmentación, el movimiento lateral es técnicamente posible.
+
+- **Riesgo:** Movimiento lateral post-compromiso: si un atacante obtiene ejecución de código en cualquier contenedor del sistema, puede explorar y atacar otros servicios y bases de datos accesibles desde ese contenedor, amplificando el impacto inicial de un único punto de compromiso hacia múltiples bases de datos, cuentas de Spotify o el broker de eventos.
+
+- **Amenaza:** Un atacante que compromete un contenedor (ya sea por vulnerabilidad en la aplicación, dependencia o imagen base) intentará realizar reconocimiento de red interno y movimiento lateral hacia componentes de mayor valor, como las bases de datos de usuarios o el broker RabbitMQ, para extraer datos o interrumpir el servicio.
+
+- **Ataque:** Movimiento Lateral / Escape de Contenedor — el atacante usa el contenedor comprometido como pivote para realizar escaneos de red internos, explotar servicios de base de datos accesibles o inyectar mensajes maliciosos en el broker de eventos, con el objetivo de comprometer datos de otros dominios del sistema.
+
+- **Contramedida:** Patrón de Segmentación de Red — las redes Docker segmentan la arquitectura en zonas de confianza independientes: `gateway_network` (DMZ pública), `api_gateway_net` (zona de API interna), redes de base de datos dedicadas por servicio (`users_db_net`, `music_db_net`, etc.), `messaging_net` (zona de mensajería) y `services_internal_net` (canal S2S explícito). Cada contenedor pertenece únicamente a las redes necesarias para su función; por ejemplo, Traefik no puede resolver `component_a` y `notification-service` no puede alcanzar `fb_users_db` directamente, limitando el radio de acción de un posible compromiso.
+
+Descripción: este patrón limita el radio de daño de un compromiso. El sistema se divide en `gateway_network`, `api_gateway_net`, redes de base de datos propias de cada servicio, `messaging_net` y `services_internal_net`.
+
+##### Escenario 4 - Patrón de Token Secreto para comunicación S2S
+![Patrón de Token Secreto](./images/p3/SECRET_TOKEN_PATTERN.jpg)
+
+- **Debilidad:** Los endpoints internos de servicio a servicio (como `/api/auth/internal/contact/{user_id}` en `user-service`) deben ser accesibles para servicios legítimos del sistema (como `notification-service`) pero no pueden exponerse públicamente. La ubicación de red de un componente dentro de la red interna de Docker no es suficiente como prueba de identidad, ya que cualquier contenedor comprometido en `services_internal_net` podría realizar llamadas a estos endpoints.
+
+- **Vulnerabilidad:** La debilidad se expone porque la red interna de Docker (`services_internal_net`) proporciona conectividad TCP pero no autenticación. Un contenedor comprometido o un proceso malicioso que logre acceso a dicha red puede invocar los endpoints internos de `user-service` sin presentar ninguna credencial, obteniendo acceso a datos de contacto de usuarios (correo electrónico, información personal) necesarios para el envío de notificaciones.
+
+- **Riesgo:** Acceso no autorizado a datos de usuario desde un servicio interno no legítimo: un atacante que controla un contenedor dentro de las redes internas puede extraer información de contacto de todos los usuarios del sistema invocando repetidamente el endpoint interno de `user-service`, sin necesidad de comprometer la capa pública de autenticación JWT.
+
+- **Amenaza:** Un actor malicioso con acceso a la red interna `services_internal_net` (ya sea por compromiso de un contenedor o por inserción de un contenedor malicioso en la red) puede intentar invocaciones directas a los endpoints internos de `user-service` para extraer datos de contacto o ejecutar operaciones privilegiadas no destinadas al acceso público.
+
+- **Ataque:** Acceso No Autorizado a API Interna — el atacante realiza peticiones HTTP directas al endpoint `/api/auth/internal/contact/{user_id}` omitiendo el encabezado `X-Internal-Token` o intentando valores arbitrarios, con el objetivo de extraer datos de usuarios, enumerar identificadores válidos o escalar el impacto de un compromiso de red interna hacia la exfiltración de datos personales.
+
+- **Contramedida:** Patrón de Token Secreto — `user-service` implementa un middleware de validación del encabezado `X-Internal-Token` usando comparación en tiempo constante (timing-safe) para evitar ataques de temporización. El secreto compartido (`FITBEAT_INTERNAL_SECRET`) es inyectado únicamente en los contenedores que necesitan comunicación S2S legítima a través de variables de entorno en el despliegue. Las peticiones sin el encabezado o con un valor incorrecto reciben `401 No Autorizado` antes de que se ejecute cualquier lógica de negocio, sin revelar información sobre la existencia o formato del token.
+
+![Evidencia del Patrón de Token Secreto](./images/p3/EvidenciaSecretToken.jpg)
+Descripción: la ubicación en la red no se trata como confianza. Incluso si un atacante alcanza una ruta interna, el servicio rechaza la solicitud a menos que el secreto compartido inyectado en el despliegue esté presente y sea válido.
+
+#### Tácticas arquitectónicas aplicadas
+- **Autenticar actores:** JWT autentica a los usuarios externos; `X-Internal-Token` autentica las llamadas internas de servicio a servicio.
+- **Autorizar acceso:** KrakenD expone solo los endpoints en lista blanca y las rutas internas requieren autorización explícita.
+- **Limitar el acceso:** Las redes Docker restringen qué contenedores pueden comunicarse entre sí.
+- **Cifrar datos en tránsito:** TLS 1.2+ asegura el tráfico HTTP externo.
+- **Limitar la exposición:** Traefik oculta las direcciones internas de los servicios y reenvía el tráfico de API del backend únicamente a KrakenD.
+- **Detectar y rechazar accesos malformados:** El gateway y el middleware devuelven errores controlados para rutas desconocidas o no autorizadas.
+- **Separar zonas de privilegio:** El borde público, el API gateway, las bases de datos, el broker y la comunicación S2S se ubican en diferentes zonas de red.
+
+#### Patrones arquitectónicos aplicados
+- **Patrón de Canal Seguro:** implementado con terminación HTTPS/TLS en Traefik y certificados de FitBeat.
+- **Patrón de Proxy Inverso:** implementado con Traefik como componente de borde que oculta la topología del backend.
+- **Patrón API Gateway:** implementado con KrakenD como contrato de API pública explícito.
+- **Patrón de Segmentación de Red:** implementado con redes Docker que aíslan las zonas DMZ, API, datos, mensajería y S2S.
+- **Patrón de Token Secreto / Secreto Compartido:** implementado con la variable de entorno `FITBEAT_INTERNAL_SECRET` y el encabezado `X-Internal-Token`.
+- **Defensa en Profundidad:** combina TLS, enrutamiento por proxy inverso, lista blanca de endpoints, aislamiento de red y validación de token interno.
+### Rendimiento y Escalabilidad
+
+#### Escenarios de rendimiento
+
+##### Escenario 1 - Inicio de sesión bajo carga concurrente normal
+| Elemento | Descripción |
 |---|---|
-| Source | Legitimate user using the web frontend or CLI, with a potential attacker listening on the network. |
-| Stimulus | The user sends credentials or tokens during login, registration, or authenticated requests. |
-| Artifact | External connector between client applications and the public FitBeat entry point. |
-| Environment | Normal operation through Traefik using HTTPS on port `443`. |
-| Response | Traefik terminates TLS 1.2+ using FitBeat certificates and forwards the request internally after the secure channel is established. |
-| Response measure | Credentials and tokens are not readable in transit; packet capture shows TLS handshake/encrypted payload instead of plain JSON credentials. |
+| Fuente | Usuarios concurrentes autenticándose en FitBeat. |
+| Estímulo | Los usuarios envían solicitudes `POST /api/auth/login` con credenciales válidas. |
+| Artefacto | Traefik, KrakenD, `user-service` y PostgreSQL. |
+| Ambiente | Operación normal con 1 y 50 usuarios virtuales generados por k6. |
+| Respuesta | La solicitud cruza el borde público y el API Gateway, alcanza `user-service`, valida al usuario en PostgreSQL y retorna un token de acceso. |
+| Medida de respuesta | La tasa de error se mantiene en `0.0%`; la latencia p(95) se mantiene por debajo de 1 segundo durante la carga normal. |
 
-Description: this scenario protects confidentiality and integrity for sensitive user traffic. It comes from the laboratory evidence where HTTP on port `8090` exposed login payloads in clear text, while HTTPS on port `443` encrypted the same information.
-
-##### Scenario 2 - Reverse Proxy Pattern
-![Reverse Proxy Pattern](./images/p3/reverseproxypattern.jpg)
-
-| Element | Description |
+##### Escenario 2 - Carga de estrés y punto de quiebre de la curva de rendimiento
+| Elemento | Descripción |
 |---|---|
-| Source | External attacker with knowledge of internal service route names. |
-| Stimulus | The attacker attempts to call internal or non-public routes through the public gateway. |
-| Artifact | Internal backend endpoints and service topology. |
-| Environment | Normal operation with Traefik in front of KrakenD. |
-| Response | Traefik forwards only allowed API path prefixes to KrakenD; KrakenD responds only for endpoints defined in `krakend.json`. |
-| Response measure | Non-whitelisted routes return rejection such as `404 Not Found`, and no internal host, port, database, or service topology is revealed. |
+| Fuente | Un evaluador de rendimiento que incrementa el tráfico concurrente de autenticación. |
+| Estímulo | k6 escala de 1 a 50, 200, 500 y 2000 usuarios virtuales contra `POST /api/auth/login`. |
+| Artefacto | Ruta de solicitud Traefik -> KrakenD -> `user-service` -> PostgreSQL. |
+| Ambiente | Ejecución de prueba de estrés con etapas de 30 segundos, usando un usuario de prueba pre-registrado y un segundo de tiempo de espera por iteración. |
+| Respuesta | El sistema procesa las solicitudes hasta que la ruta de autenticación se satura; tras la saturación, la latencia se acerca al tiempo de espera de 10 segundos y las solicitudes comienzan a fallar. |
+| Medida de respuesta | El punto de quiebre aparece en 200 VUs, donde p(95) salta a `8936 ms` y aparecen los primeros errores (`15.5%`). |
 
-Description: Traefik is a pure reverse proxy at the edge. It knows KrakenD and the SSR frontend, but it does not know the addresses of backend microservices. KrakenD then applies the API contract whitelist.
+#### Tácticas arquitectónicas aplicadas
+- **Introducir concurrencia:** k6 genera usuarios virtuales concurrentes para evaluar el comportamiento de la ruta de autenticación bajo demanda creciente.
+- **Delimitar responsabilidades del servicio:** Cada microservicio se enfoca en una capacidad, reduciendo la contención y permitiendo el escalado independiente.
+- **Centralizar el enrutamiento:** Traefik y KrakenD concentran las decisiones de enrutamiento público y exponen una ruta de solicitud controlada para el tráfico de autenticación.
+- **Controlar la demanda durante ráfagas:** Los umbrales de k6 y los perfiles de carga escalonados hacen visible el punto de saturación antes de definir los objetivos de escalado horizontal.
 
-##### Scenario 3 - Network Segmentation Pattern
-![Network Segmentation Pattern](./images/p3/networksegmentationpattern.jpg)
+#### Patrones arquitectónicos aplicados
+- **Patrón de Microservicios:** los servicios independientes pueden escalarse según la carga específica del dominio.
+- **Patrón de Base de Datos por Servicio:** cada servicio puede escalar su persistencia según su propio perfil de lectura/escritura.
+- **Patrón API Gateway:** el tráfico de autenticación medido atraviesa KrakenD antes de llegar al servicio de identidad.
 
-| Element | Description |
-|---|---|
-| Source | Attacker who compromises a container such as `notification-service` or attempts lateral movement from the reverse proxy. |
-| Stimulus | The attacker tries to reach unrelated services or databases directly. |
-| Artifact | Docker networks, backend microservices, databases, and RabbitMQ. |
-| Environment | Normal operation with segmented networks and service-specific memberships. |
-| Response | Docker networking prevents name resolution and TCP connectivity unless both components share an explicit network. |
-| Response measure | A compromised component cannot reach unrelated databases or services; for example, Traefik cannot resolve `component_a`, and `notification-service` cannot reach the users database. |
-
-Description: this pattern limits the blast radius of a compromise. The system is divided into `gateway_network`, `api_gateway_net`, service-owned database networks, `messaging_net`, and `services_internal_net`.
-
-##### Scenario 4 - Secret Token Pattern for S2S communication
-![Secret Token Pattern](./images/p3/SECRET_TOKEN_PATTERN.jpg)
-
-| Element | Description |
-|---|---|
-| Source | Unauthorized internal actor, compromised container, or service without the internal secret. |
-| Stimulus | The actor invokes an internal endpoint such as `/api/auth/internal/contact/{user_id}` without `X-Internal-Token`. |
-| Artifact | Internal service-to-service endpoints in backend microservices. |
-| Environment | Normal operation inside Docker internal networks. |
-| Response | Middleware validates `X-Internal-Token` using timing-safe comparison and rejects missing or invalid tokens before business logic executes. |
-| Response measure | Unauthorized calls return `401 Unauthorized`; authorized calls with the valid token pass middleware and reach business logic. |
-
-![Secret Token Pattern evidence](./images/p3/EvidenciaSecretToken.jpg)
-Description: network location is not treated as trust. Even if an attacker reaches an internal route, the service rejects the request unless the deployment-injected shared secret is present and valid.
-
-#### Applied architectural tactics
-- **Authenticate actors:** JWT authenticates external users; `X-Internal-Token` authenticates internal service-to-service calls.
-- **Authorize access:** KrakenD exposes only whitelisted endpoints and internal routes require explicit authorization.
-- **Limit access:** Docker networks restrict which containers can communicate.
-- **Encrypt data in transit:** TLS 1.2+ secures external HTTP traffic.
-- **Limit exposure:** Traefik hides internal service addresses and forwards backend API traffic only to KrakenD.
-- **Detect and reject malformed access:** Gateway and middleware return controlled errors for unknown or unauthorized routes.
-- **Separate privilege zones:** Public edge, API gateway, databases, broker, and S2S communication are placed in different network zones.
-
-#### Applied architectural patterns
-- **Secure Channel Pattern:** implemented with HTTPS/TLS termination at Traefik and FitBeat certificates.
-- **Reverse Proxy Pattern:** implemented with Traefik as the edge component that hides backend topology.
-- **API Gateway Pattern:** implemented with KrakenD as the explicit public API contract.
-- **Network Segmentation Pattern:** implemented with Docker networks that isolate DMZ, API, data, messaging, and S2S zones.
-- **Secret Token / Shared Secret Pattern:** implemented with the `FITBEAT_INTERNAL_SECRET` environment variable and `X-Internal-Token` header.
-- **Defense in Depth:** combines TLS, reverse proxy routing, endpoint whitelisting, network isolation, and internal token validation.
-
-### Performance and Scalability
-
-#### Performance scenarios
-
-##### Scenario 1 - Login under normal concurrent load
-| Element | Description |
-|---|---|
-| Source | Concurrent users authenticating in FitBeat. |
-| Stimulus | Users send `POST /api/auth/login` requests with valid credentials. |
-| Artifact | Traefik, KrakenD, `user-service`, and PostgreSQL. |
-| Environment | Normal operation with 1 and 50 virtual users generated by k6. |
-| Response | The request crosses the public edge and API Gateway, reaches `user-service`, validates the user in PostgreSQL, and returns an access token. |
-| Response measure | Error rate remains at `0.0%`; p(95) latency stays below 1 second during normal load. |
-
-##### Scenario 2 - Stress load and knee of the performance curve
-| Element | Description |
-|---|---|
-| Source | A performance tester increasing concurrent authentication traffic. |
-| Stimulus | k6 ramps from 1 to 50, 200, 500, and 2000 virtual users against `POST /api/auth/login`. |
-| Artifact | Traefik -> KrakenD -> `user-service` -> PostgreSQL request path. |
-| Environment | Stress test execution with 30-second stages, using a pre-registered test user and one-second think time per iteration. |
-| Response | The system processes requests until the authentication path saturates; after saturation, latency approaches the 10-second timeout and requests start failing. |
-| Response measure | The knee appears at 200 VUs, where p(95) jumps to `8936 ms` and the first errors appear (`15.5%`). |
-
-#### Applied architectural tactics
-- **Introduce concurrency:** k6 generates concurrent virtual users to exercise how the authentication path behaves under increasing demand.
-- **Bound service responsibilities:** Each microservice focuses on one capability, reducing contention and allowing independent scaling.
-- **Centralize routing:** Traefik and KrakenD concentrate public routing decisions and expose one controlled request path for authentication traffic.
-- **Control demand during bursts:** k6 thresholds and staged load profiles make the saturation point visible before defining horizontal scaling targets.
-
-#### Applied architectural patterns
-- **Microservices Pattern:** independent services can be scaled according to domain-specific load.
-- **Database-per-service Pattern:** each service can scale its persistence according to its own read/write profile.
-- **API Gateway Pattern:** the measured authentication traffic crosses KrakenD before reaching the identity service.
-
-#### Performance testing analysis and results
-Following the laboratory objective of identifying the knee of the performance curve, the implemented validation used k6 against the synchronous authentication path:
+#### Análisis y resultados de las pruebas de rendimiento
+Siguiendo el objetivo del laboratorio de identificar el punto de quiebre de la curva de rendimiento, la validación implementada utilizó k6 contra la ruta sincrónica de autenticación:
 
 ```text
 k6 -> Traefik :8090 -> KrakenD :8085 -> user-service :8000 -> PostgreSQL
 ```
 
-The endpoint measured was `POST /api/auth/login`. The test scripts are located in `performance-tests/k6`: `performance_test.js` defines the parameterized baseline/load/stress profiles, `case2_load.js` runs 50 VUs for 30 seconds, and `case3_stress.js` ramps the system through 1, 50, 200, 500, and 2000 VUs. In `setup()`, k6 registers a test user once; during the test, each VU repeatedly performs login and waits one second to simulate user think time. The measured metrics were `http_req_duration`, `http_req_failed`, custom login duration trends, throughput, and error rate.
+El endpoint medido fue `POST /api/auth/login`. Los scripts de prueba se encuentran en `performance-tests/k6`: `performance_test.js` define los perfiles parametrizados de línea base, carga y estrés; `case2_load.js` ejecuta 50 VUs durante 30 segundos; y `case3_stress.js` escala el sistema a través de 1, 50, 200, 500 y 2000 VUs. En `setup()`, k6 registra un usuario de prueba una sola vez; durante la prueba, cada VU realiza el inicio de sesión repetidamente y espera un segundo para simular el tiempo de reflexión del usuario. Las métricas medidas fueron `http_req_duration`, `http_req_failed`, tendencias personalizadas de duración del inicio de sesión, rendimiento y tasa de error.
 
-![Performance results by load level](./performance-tests/results/chart_table.png)
+![Resultados de rendimiento por nivel de carga](./performance-tests/results/chart_table.png)
 
-| Concurrent users | Avg (ms) | p(90) (ms) | p(95) (ms) | Max (ms) | Throughput (req/s) | Errors |
-|---:|---:|---:|---:|---:|---:|---:|
-| 1 | 96 | 126 | 128 | 160 | 1.0 | 0.0% |
-| 50 | 99 | 143 | 159 | 207 | 26.8 | 0.0% |
-| 200 | 1578 | 8932 | 8936 | 10019 | 35.4 | 15.5% |
-| 500 | 9605 | 10011 | 10013 | 10044 | 32.9 | 100.0% |
-| 2000 | 9629 | 10009 | 10010 | 10043 | 118.9 | 100.0% |
 
-![Knee of the performance curve](./performance-tests/results/chart_knee.png)
+![Punto de quiebre de la curva de rendimiento](./performance-tests/results/chart_knee.png)
 
-The system is stable at 1 and 50 VUs: p(95) remains below 200 ms and there are no failed requests. The knee appears at 200 VUs because p(95) grows from 159 ms to 8936 ms and the first failures appear with a 15.5% error rate. From 500 VUs onward, the endpoint is no longer degraded but saturated: average latency stays near 9.6 seconds, p(95) is around 10 seconds, and the error rate reaches 100%.
+El sistema es estable con 1 y 50 VUs: p(95) se mantiene por debajo de 200 ms y no hay solicitudes fallidas. El punto de quiebre aparece en 200 VUs porque p(95) crece de 159 ms a 8936 ms y aparecen los primeros fallos con una tasa de error del 15.5%. A partir de 500 VUs, el endpoint ya no está degradado sino saturado: la latencia promedio se mantiene cerca de 9.6 segundos, p(95) ronda los 10 segundos y la tasa de error alcanza el 100%.
 
-This result indicates that, for the current Docker Compose deployment, the practical capacity of the authentication path is below 200 concurrent login users. The first bottleneck to investigate is the synchronous `user-service` and PostgreSQL path behind KrakenD, because the test exercises mainly credential validation, token creation, gateway forwarding, and database access. 
+Este resultado indica que, para el despliegue actual con Docker Compose, la capacidad práctica de la ruta de autenticación es inferior a 200 usuarios concurrentes de inicio de sesión. El primer cuello de botella a investigar es la ruta sincrónica de `user-service` y PostgreSQL detrás de KrakenD, ya que la prueba ejercita principalmente la validación de credenciales, la creación de tokens, el reenvío por el gateway y el acceso a la base de datos.
 
