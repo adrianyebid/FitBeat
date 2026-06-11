@@ -142,7 +142,11 @@ docker logs -f fb_music_ms_1 fb_music_ms_2 fb_music_ms_3
 ### 2. Deployment Structure
 
 #### Deployment View
-![Deployment View](./images/p4/DeploymentP4.jpg.jpeg)
+##### Development
+![Deployment View Local](./images/p4/DeploymentP4.jpg.jpeg)
+
+##### Production
+![Deployment View Cloud](./images/p4/clusterDeployment.png)
 
 #### Description of architectural elements and relations
 
@@ -573,8 +577,14 @@ Description: the timeout test was executed by forcing delayed Spotify responses;
 - **Detect and constrain slow dependencies:** external calls use explicit timeout limits.
 - **Fail fast:** requests stop waiting when dependency latency exceeds the configured threshold.
 - **Degrade gracefully:** the API returns a controlled and consistent `504` error response.
+- **Increase availability through redundancy:** multiple replicas of `user-service` are deployed across the cluster.
+- **Automatic service recovery:** failed instances are automatically recreated by Kubernetes.
+- **Minimize recovery time:** standby capacity is maintained to absorb failures and traffic spikes without service interruption.
 
 #### Applied architectural patterns
 - **Timeout Pattern:** implemented in outbound HTTP integration from `music-service` to Spotify.
 - **Fail-Fast Strategy:** avoids indefinite waits and thread/resource blocking.
 - **Defensive Integration Boundary:** dependency timeout is mapped to a stable API contract.
+- **Cluster Pattern:** `user-service` is deployed on a GKE cluster with multiple pods managed by Kubernetes. The cluster distributes traffic across healthy instances and provides high availability through replica management and self-healing capabilities.
+- **Service Discovery Pattern:** services communicate using Kubernetes native service discovery. `user-service` is exposed through a Kubernetes Service and can be dynamically located by other microservices using DNS-based service names, eliminating hardcoded endpoints and improving scalability.
+- **Warm Spare Pattern:** additional `user-service` replicas remain running and synchronized within the cluster, ready to handle requests immediately if an active instance fails or traffic demand increases. This reduces failover time and improves system availability.
