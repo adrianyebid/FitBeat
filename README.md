@@ -531,11 +531,11 @@ From these results, the practical knee moves from around **200 VUs** (baseline) 
 
 ##### Scenario 2 - Service Discovery Pattern
 
-![Service Discovery Pattern](./images/p4/serviceDiscoveryPattern.png)
+![Service Discovery Pattern](./images/p4/ServiceDiscoveryPattern.png)
 
 ##### Scenario 3 - Cluster Pattern
 
-![Clustern Pattern](./images/p4/clusterPattern.png)
+![Clustern Pattern](./images/p4/ClusternPattern.png)
 
 ##### Scenario 4 - Timeout Pattern
 
