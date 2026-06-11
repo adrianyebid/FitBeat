@@ -1,4 +1,4 @@
-# Project: Prototype 3 - Quality Attributes, Part 1
+# Project: Prototype 3 - Quality Attributes, Part 2
 
 ## Team
 
@@ -529,13 +529,31 @@ From these results, the practical knee moves from around **200 VUs** (baseline) 
 
 ![Warm Spare Pattern](./images/p4/warmSparePattern.png)
 
+- **Weakness:**
+fb_users_ms has a single point of failure at the database layer. A failure of the primary PostgreSQL container (fb_users_db) immediately impacts authentication operations, causing service disruption and failed requests.
+
+- **Countermeasure:**
+Warm Spare Pattern: deploy a standby PostgreSQL container (fb_users_db_standby) running continuously and synchronized with the primary database. Upon primary failure, the standby is promoted automatically, allowing fb_users_ms to reconnect and resume operations without manual database restoration or application restart. The target recovery objective is database availability within 60 seconds and successful endpoint responses during the recovery window.
+
 ##### Scenario 2 - Service Discovery Pattern
 
 ![Service Discovery Pattern](./images/p4/ServiceDiscoveryPattern.png)
 
+- **Weakness:**
+The system runs multiple fb_users_ms replicas, but consumers may continue sending requests to a failed replica if instance locations are statically configured. This creates a risk of failed requests and service disruption when a replica crashes or is stopped.
+
+- **Countermeasure:**
+Service Discovery Pattern using Consul Registry and Health Checks: each fb_users_ms instance periodically reports its health status to Consul. Failed replicas are automatically removed from the healthy service catalog within approximately 15 seconds, ensuring that consumers only receive reachable instances. Once the replica is restarted and passes health checks, it is automatically added back to the registry, restoring the complete pool of available instances without requiring configuration changes or manual updates.
+
 ##### Scenario 3 - Cluster Pattern
 
 ![Clustern Pattern](./images/p4/ClusternPattern.png)
+
+- **Weakness:**
+The fb_auth_ms service must remain available even when individual application instances (Pods) fail. A crash of a single Pod or an underlying infrastructure failure could interrupt authentication requests if traffic depends on a single running instance.
+
+- **Countermeasure:**
+Cluster Pattern implemented on Google Kubernetes Engine (GKE): fb_auth_ms runs as a cluster of multiple replicas behind a Kubernetes Service and Ingress. Incoming requests are automatically distributed across healthy Pods. If one Pod crashes or becomes unavailable, Kubernetes immediately removes it from the load-balancing pool, redirects traffic to the remaining healthy replicas, and automatically creates a replacement Pod. This ensures continuous service availability without requiring manual intervention.
 
 ##### Scenario 4 - Timeout Pattern
 
