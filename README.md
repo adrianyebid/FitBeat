@@ -142,7 +142,7 @@ docker logs -f fb_music_ms_1 fb_music_ms_2 fb_music_ms_3
 ### 2. Deployment Structure
 
 #### Deployment View
-![Deployment View](./images/p3/deployment_view.jpg)
+![Deployment View](./images/p4/DeploymentP4.jpg.jpeg)
 
 #### Description of architectural elements and relations
 
